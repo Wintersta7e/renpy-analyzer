@@ -58,7 +58,7 @@ _SEVERITY_BADGE_TEXT = {
     Severity.STYLE:    (1.0, 1.0, 1.0),
 }
 
-_CATEGORY_ORDER = ["Labels", "Variables", "Logic", "Menus", "Assets", "Characters"]
+_CATEGORY_ORDER = ["Labels", "Variables", "Logic", "Menus", "Assets", "Characters", "Flow"]
 
 _CHECK_TO_CATEGORY = {
     "labels": "Labels",
@@ -67,6 +67,7 @@ _CHECK_TO_CATEGORY = {
     "menus": "Menus",
     "assets": "Assets",
     "characters": "Characters",
+    "flow": "Flow",
 }
 
 # ---------------------------------------------------------------------------
@@ -85,16 +86,16 @@ _FONT_SANS = "helv"       # Helvetica
 _FONT_SANS_BOLD = "hebo"  # Helvetica-Bold
 _FONT_MONO = "cour"       # Courier
 
-# Font objects for measuring
-_font_helv = fitz.Font("helv")
-_font_hebo = fitz.Font("hebo")
-_font_cour = fitz.Font("cour")
+# Font objects for measuring (lazy-initialized)
+_FONT_METRICS: dict[str, fitz.Font] = {}
 
-_FONT_METRICS = {
-    _FONT_SANS: _font_helv,
-    _FONT_SANS_BOLD: _font_hebo,
-    _FONT_MONO: _font_cour,
-}
+
+def _get_font(fontname: str) -> fitz.Font:
+    """Return a cached fitz.Font for measuring text width."""
+    if fontname not in _FONT_METRICS:
+        _FONT_METRICS[fontname] = fitz.Font(fontname)
+    return _FONT_METRICS[fontname]
+
 
 # Location display constants
 _LOC_FONT_SIZE = 7.5
@@ -104,7 +105,7 @@ _LOC_COL_W = (_CONTENT_W - 28) / 2  # Two columns within a card
 
 def _text_width(text: str, fontname: str, fontsize: float) -> float:
     """Return the rendered width of *text* in points."""
-    return _FONT_METRICS[fontname].text_length(text, fontsize=fontsize)
+    return _get_font(fontname).text_length(text, fontsize=fontsize)
 
 
 def _wrap_text(text: str, max_width: float, fontname: str, fontsize: float) -> list[str]:
