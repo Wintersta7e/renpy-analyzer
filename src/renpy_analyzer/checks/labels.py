@@ -61,4 +61,19 @@ def check(project: ProjectModel) -> list[Finding]:
                     suggestion="Remove or rename duplicate label definitions.",
                 ))
 
+    for dj in project.dynamic_jumps:
+        findings.append(Finding(
+            severity=Severity.MEDIUM,
+            check_name="labels",
+            title="Dynamic jump/call target",
+            description=(
+                f"Expression-based jump/call at {dj.file}:{dj.line}: "
+                f"`{dj.expression}` — target cannot be statically verified. "
+                f"Ensure the expression resolves to a valid label at runtime."
+            ),
+            file=dj.file,
+            line=dj.line,
+            suggestion="Consider using a direct label name if the target is known at write time.",
+        ))
+
     return findings

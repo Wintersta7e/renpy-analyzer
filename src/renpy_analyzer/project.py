@@ -36,6 +36,7 @@ def load_project(path: str) -> ProjectModel:
         model.labels.extend(result["labels"])
         model.jumps.extend(result["jumps"])
         model.calls.extend(result["calls"])
+        model.dynamic_jumps.extend(result.get("dynamic_jumps", []))
         model.variables.extend(result["variables"])
         model.menus.extend(result["menus"])
         model.scenes.extend(result["scenes"])

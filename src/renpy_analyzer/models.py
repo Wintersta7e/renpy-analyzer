@@ -37,6 +37,13 @@ class Call:
 
 
 @dataclass
+class DynamicJump:
+    expression: str
+    file: str
+    line: int
+
+
+@dataclass
 class Variable:
     name: str
     file: str
@@ -134,6 +141,7 @@ class ProjectModel:
     labels: list[Label] = field(default_factory=list)
     jumps: list[Jump] = field(default_factory=list)
     calls: list[Call] = field(default_factory=list)
+    dynamic_jumps: list[DynamicJump] = field(default_factory=list)
     variables: list[Variable] = field(default_factory=list)
     menus: list[Menu] = field(default_factory=list)
     scenes: list[SceneRef] = field(default_factory=list)

@@ -222,6 +222,22 @@ def test_dotted_default_not_split(tmp_path):
     assert result["variables"][0].name == "persistent.s2"
 
 
+def test_jump_call_expression_parsed(tmp_path):
+    """jump expression and call expression should be captured as dynamic jumps."""
+    rpy = tmp_path / "test.rpy"
+    rpy.write_text(textwrap.dedent("""\
+        label start:
+            jump expression target_var
+            call expression "label_" + str(num)
+    """), encoding="utf-8")
+    result = parse_file(str(rpy))
+    assert len(result["dynamic_jumps"]) == 2
+    assert result["dynamic_jumps"][0].expression == "target_var"
+    # These should NOT appear as regular jumps/calls
+    assert len(result["jumps"]) == 0
+    assert len(result["calls"]) == 0
+
+
 def test_multiword_scene_show(tmp_path):
     """scene bg park sunset should capture full image name and tag."""
     rpy = tmp_path / "test.rpy"

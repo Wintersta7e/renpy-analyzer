@@ -10,6 +10,7 @@ from .models import (
     CharacterDef,
     Condition,
     DialogueLine,
+    DynamicJump,
     ImageDef,
     Jump,
     Label,
@@ -24,6 +25,8 @@ from .models import (
 # --- Regex patterns ---
 
 RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*:")
+RE_JUMP_EXPR = re.compile(r"^\s+jump\s+expression\s+(.+)")
+RE_CALL_EXPR = re.compile(r"^\s+call\s+expression\s+(.+)")
 RE_JUMP = re.compile(r"^\s+jump\s+(\w+)\s*$")
 RE_CALL = re.compile(r"^\s+call\s+(\w+)")
 RE_DEFAULT = re.compile(r"^\s*default\s+([\w.]+)\s*=\s*(.+)")
@@ -71,6 +74,7 @@ def parse_file(filepath: str) -> dict:
     labels: list[Label] = []
     jumps: list[Jump] = []
     calls: list[Call] = []
+    dynamic_jumps: list[DynamicJump] = []
     variables: list[Variable] = []
     menus: list[Menu] = []
     scenes: list[SceneRef] = []
@@ -136,6 +140,22 @@ def parse_file(filepath: str) -> dict:
         if m and current_menu is None:
             menu_indent = _get_indent(line)
             current_menu = Menu(file=display_path, line=lineno)
+            continue
+
+        # --- Jump expression (before normal jump) ---
+        m = RE_JUMP_EXPR.match(line)
+        if m:
+            dynamic_jumps.append(DynamicJump(
+                expression=m.group(1).strip(), file=display_path, line=lineno,
+            ))
+            continue
+
+        # --- Call expression (before normal call) ---
+        m = RE_CALL_EXPR.match(line)
+        if m:
+            dynamic_jumps.append(DynamicJump(
+                expression=m.group(1).strip(), file=display_path, line=lineno,
+            ))
             continue
 
         # --- Jump ---
@@ -313,6 +333,7 @@ def parse_file(filepath: str) -> dict:
         "labels": labels,
         "jumps": jumps,
         "calls": calls,
+        "dynamic_jumps": dynamic_jumps,
         "variables": variables,
         "menus": menus,
         "scenes": scenes,
