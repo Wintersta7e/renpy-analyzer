@@ -1,7 +1,8 @@
 """Smoke tests for data models."""
 from renpy_analyzer.models import (
-    Severity, Label, Jump, Variable, Menu, MenuChoice,
-    Finding, ProjectModel,
+    Finding,
+    ProjectModel,
+    Severity,
 )
 
 

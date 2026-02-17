@@ -1,8 +1,9 @@
 """Tests for logic check."""
 import textwrap
-from renpy_analyzer.project import load_project
+
 from renpy_analyzer.checks.logic import check
 from renpy_analyzer.models import Severity
+from renpy_analyzer.project import load_project
 
 
 def _project(tmp_path, script):

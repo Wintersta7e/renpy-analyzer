@@ -3,7 +3,7 @@
 Each module exports a check(project) -> list[Finding] function.
 """
 
-from . import labels, variables, logic, menus, assets, characters
+from . import assets, characters, labels, logic, menus, variables
 
 ALL_CHECKS = {
     "Labels": labels.check,

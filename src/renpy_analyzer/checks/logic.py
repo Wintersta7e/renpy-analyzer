@@ -1,8 +1,10 @@
 """Check for operator precedence bugs and == True anti-patterns."""
 
 from __future__ import annotations
+
 import re
-from ..models import ProjectModel, Finding, Severity
+
+from ..models import Finding, ProjectModel, Severity
 
 RE_PRECEDENCE_BUG = re.compile(
     r'\b(\w+)\s+(or|and)\s+(\w+)\s*==\s*(True|False)\b'

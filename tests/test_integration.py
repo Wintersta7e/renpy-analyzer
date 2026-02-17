@@ -4,11 +4,13 @@ Validates that all known bugs from BUG_REVIEW.md are detected.
 Skip if test game is not available.
 """
 
-import pytest
 from pathlib import Path
-from renpy_analyzer.project import load_project
+
+import pytest
+
 from renpy_analyzer.checks import ALL_CHECKS
 from renpy_analyzer.models import Severity
+from renpy_analyzer.project import load_project
 
 TEST_GAME = "/mnt/e/H/Renpy/ReviewProjects/OneDayataTime-S2-Ch.21-Pt.1-pc"
 

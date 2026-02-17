@@ -1,7 +1,8 @@
 """Tests for labels check."""
 import textwrap
-from renpy_analyzer.project import load_project
+
 from renpy_analyzer.checks.labels import check
+from renpy_analyzer.project import load_project
 
 
 def _project(tmp_path, script_content):

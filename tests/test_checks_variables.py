@@ -1,7 +1,8 @@
 """Tests for variables check."""
 import textwrap
-from renpy_analyzer.project import load_project
+
 from renpy_analyzer.checks.variables import check
+from renpy_analyzer.project import load_project
 
 
 def _project(tmp_path, vars_content, script_content=""):

@@ -1,7 +1,8 @@
 """Check for menu issues: empty choices, fallthroughs, single-option menus."""
 
 from __future__ import annotations
-from ..models import ProjectModel, Finding, Severity
+
+from ..models import Finding, ProjectModel, Severity
 
 
 def check(project: ProjectModel) -> list[Finding]:

@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 from collections import Counter
 from datetime import datetime
+
 import fitz  # PyMuPDF
 
 from ..models import Finding, Severity
@@ -300,7 +301,10 @@ class _PDFBuilder:
         # -- Project path (below banner) --
         self.y = banner_h + 30
         if self.game_path:
-            self._draw_text(_MARGIN_L, "Project path:", fontname=_FONT_SANS_BOLD, fontsize=9, color=_COLOURS["mid_text"])
+            self._draw_text(
+                _MARGIN_L, "Project path:",
+                fontname=_FONT_SANS_BOLD, fontsize=9, color=_COLOURS["mid_text"],
+            )
             self.y += 14
             # Truncate long paths
             display_path = self.game_path
@@ -355,7 +359,10 @@ class _PDFBuilder:
 
         # -- Category breakdown table --
         self.y += 15
-        self._draw_text(_MARGIN_L, "Findings by Category", fontname=_FONT_SANS_BOLD, fontsize=14, color=_COLOURS["dark_text"])
+        self._draw_text(
+            _MARGIN_L, "Findings by Category",
+            fontname=_FONT_SANS_BOLD, fontsize=14, color=_COLOURS["dark_text"],
+        )
         self.y += 20
 
         cat_counts: dict[str, Counter] = {}
@@ -377,7 +384,10 @@ class _PDFBuilder:
         )
         self._draw_text(col_x[0] + 5, "Category", fontname=_FONT_SANS_BOLD, fontsize=9, color=_COLOURS["white"])
         for i, sev in enumerate(Severity):
-            self._draw_text(col_x[1] + i * sev_col_w + 5, sev.name, fontname=_FONT_SANS_BOLD, fontsize=8, color=_COLOURS["white"])
+            self._draw_text(
+                col_x[1] + i * sev_col_w + 5, sev.name,
+                fontname=_FONT_SANS_BOLD, fontsize=8, color=_COLOURS["white"],
+            )
         self._draw_text(col_x[-1] + 5, "TOTAL", fontname=_FONT_SANS_BOLD, fontsize=8, color=_COLOURS["white"])
         self.y += 18
 
@@ -388,9 +398,10 @@ class _PDFBuilder:
             if row_total == 0:
                 continue
             # Alternating row background
-            row_y_top = self.y - 11
-            row_y_bot = self.y + 5
-            self._draw_text(col_x[0] + 5, cat, fontname=_FONT_SANS, fontsize=9, color=_COLOURS["dark_text"])
+            self._draw_text(
+                col_x[0] + 5, cat,
+                fontname=_FONT_SANS, fontsize=9, color=_COLOURS["dark_text"],
+            )
             for i, sev in enumerate(Severity):
                 c = counts.get(sev, 0)
                 if c > 0:
@@ -398,7 +409,11 @@ class _PDFBuilder:
                         col_x[1] + i * sev_col_w + 5, str(c),
                         fontname=_FONT_SANS, fontsize=9, color=_SEVERITY_COLOURS[sev],
                     )
-            self._draw_text(col_x[-1] + 5, str(row_total), fontname=_FONT_SANS_BOLD, fontsize=9, color=_COLOURS["dark_text"])
+            self._draw_text(
+                col_x[-1] + 5, str(row_total),
+                fontname=_FONT_SANS_BOLD, fontsize=9,
+                color=_COLOURS["dark_text"],
+            )
             self.y += 18
             # Thin rule
             self.page.draw_line(
@@ -609,7 +624,11 @@ class _PDFBuilder:
             fill=_COLOURS["navy"], color=None,
         )
         hdr_y = self.y + 12
-        self.page.insert_text(fitz.Point(table_left + 8, hdr_y), "Category", fontsize=9, fontname=_FONT_SANS_BOLD, color=_COLOURS["white"])
+        self.page.insert_text(
+            fitz.Point(table_left + 8, hdr_y), "Category",
+            fontsize=9, fontname=_FONT_SANS_BOLD,
+            color=_COLOURS["white"],
+        )
         for i, sev in enumerate(Severity):
             self.page.insert_text(
                 fitz.Point(table_left + col_label_w + i * sev_col_w + 5, hdr_y),
@@ -642,7 +661,11 @@ class _PDFBuilder:
                     fill=(0.96, 0.96, 0.97), color=None,
                 )
             data_y = self.y + 12
-            self.page.insert_text(fitz.Point(table_left + 8, data_y), cat, fontsize=9, fontname=_FONT_SANS, color=_COLOURS["dark_text"])
+            self.page.insert_text(
+                fitz.Point(table_left + 8, data_y), cat,
+                fontsize=9, fontname=_FONT_SANS,
+                color=_COLOURS["dark_text"],
+            )
             for i, sev in enumerate(Severity):
                 c = counts.get(sev, 0)
                 if c > 0:
@@ -663,7 +686,11 @@ class _PDFBuilder:
             fill=_COLOURS["navy"], color=None,
         )
         gt_y = self.y + 12
-        self.page.insert_text(fitz.Point(table_left + 8, gt_y), "TOTAL", fontsize=9, fontname=_FONT_SANS_BOLD, color=_COLOURS["white"])
+        self.page.insert_text(
+            fitz.Point(table_left + 8, gt_y), "TOTAL",
+            fontsize=9, fontname=_FONT_SANS_BOLD,
+            color=_COLOURS["white"],
+        )
         for i, sev in enumerate(Severity):
             c = grand_by_sev.get(sev, 0)
             if c > 0:

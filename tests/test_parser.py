@@ -2,6 +2,7 @@
 
 import textwrap
 from pathlib import Path
+
 from renpy_analyzer.parser import parse_file
 
 
@@ -19,7 +20,7 @@ def test_parse_labels(tmp_path):
             "World"
     """)
     result = parse_file(path)
-    names = [l.name for l in result["labels"]]
+    names = [lbl.name for lbl in result["labels"]]
     assert names == ["start", "chapter2"]
 
 

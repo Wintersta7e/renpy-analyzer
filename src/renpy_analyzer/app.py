@@ -5,14 +5,14 @@ from __future__ import annotations
 import threading
 from collections import Counter
 from pathlib import Path
-from tkinter import filedialog, StringVar, BooleanVar
+from tkinter import BooleanVar, StringVar, filedialog
 
 import customtkinter as ctk
 
 from . import __version__
+from .checks import ALL_CHECKS
 from .models import Finding, Severity
 from .project import load_project
-from .checks import ALL_CHECKS
 from .report.pdf import generate_pdf
 
 # ---------------------------------------------------------------------------

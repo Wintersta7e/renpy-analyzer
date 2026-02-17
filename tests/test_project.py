@@ -2,6 +2,7 @@
 
 import textwrap
 from pathlib import Path
+
 from renpy_analyzer.project import load_project
 
 

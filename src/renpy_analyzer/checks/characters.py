@@ -1,7 +1,8 @@
 """Check for character definition issues: undefined speakers, unused defs."""
 
 from __future__ import annotations
-from ..models import ProjectModel, Finding, Severity
+
+from ..models import Finding, ProjectModel, Severity
 
 
 def check(project: ProjectModel) -> list[Finding]:

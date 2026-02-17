@@ -1,9 +1,11 @@
 """Check for asset reference issues: undefined scenes, animation path casing."""
 
 from __future__ import annotations
+
 import re
 from pathlib import Path
-from ..models import ProjectModel, Finding, Severity
+
+from ..models import Finding, ProjectModel, Severity
 from ..parser import BUILTIN_IMAGES
 
 

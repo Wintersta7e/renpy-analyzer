@@ -1,8 +1,8 @@
 """Tests for assets check."""
 import textwrap
-from renpy_analyzer.project import load_project
+
 from renpy_analyzer.checks.assets import check
-from renpy_analyzer.models import Severity
+from renpy_analyzer.project import load_project
 
 
 def _project_with_images(tmp_path, script, images=None):

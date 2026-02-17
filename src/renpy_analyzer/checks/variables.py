@@ -1,8 +1,10 @@
 """Check for variable issues: undeclared, unused, case mismatches."""
 
 from __future__ import annotations
+
 import re
-from ..models import ProjectModel, Finding, Severity
+
+from ..models import Finding, ProjectModel, Severity
 
 
 def check(project: ProjectModel) -> list[Finding]:

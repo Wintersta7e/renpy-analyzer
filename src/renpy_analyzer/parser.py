@@ -1,13 +1,24 @@
 """Regex-based parser for Ren'Py .rpy files."""
 
 from __future__ import annotations
+
 import re
 from pathlib import Path
 
 from .models import (
-    Label, Jump, Call, Variable, MenuChoice, Menu,
-    SceneRef, ShowRef, ImageDef, MusicRef, CharacterDef,
-    DialogueLine, Condition,
+    Call,
+    CharacterDef,
+    Condition,
+    DialogueLine,
+    ImageDef,
+    Jump,
+    Label,
+    Menu,
+    MenuChoice,
+    MusicRef,
+    SceneRef,
+    ShowRef,
+    Variable,
 )
 
 # --- Regex patterns ---

@@ -1,6 +1,7 @@
 """Data models for parsed Ren'Py project elements."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import IntEnum
 
