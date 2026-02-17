@@ -27,13 +27,13 @@ from .models import (
 RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*:")
 RE_JUMP_EXPR = re.compile(r"^\s+jump\s+expression\s+(.+)")
 RE_CALL_EXPR = re.compile(r"^\s+call\s+expression\s+(.+)")
-RE_JUMP = re.compile(r"^\s+jump\s+(\w+)\s*$")
+RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
 RE_CALL = re.compile(r"^\s+call\s+(\w+)")
 RE_DEFAULT = re.compile(r"^\s*default\s+([\w.]+)\s*=\s*(.+)")
 RE_DEFINE = re.compile(r"^\s*define\s+([\w.]+)\s*=\s*(.+)")
 RE_ASSIGN = re.compile(r"^\s*\$\s+(\w+)\s*=\s*(.+)")
 RE_AUGMENT = re.compile(r"^\s*\$\s+(\w+)\s*[+\-*/]=\s*(.+)")
-RE_CHARACTER = re.compile(r'^\s*define\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
+RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
 RE_SCENE = re.compile(r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b)[\w]+)*)(?:\s+with\s+(\w+))?")
 RE_SHOW = re.compile(r"^\s+show\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b)[\w]+)*)")
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
@@ -47,14 +47,14 @@ RE_MENU = re.compile(r"^(\s+)menu\s*:")
 RE_MENU_CHOICE = re.compile(r'^(\s+)"([^"]+)"(?:\s+if\s+(.+?))?\s*:')
 RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
-RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+")
+RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
 
 RENPY_KEYWORDS = frozenset({
     "jump", "call", "return", "scene", "show", "hide", "with",
     "play", "stop", "queue", "voice", "define", "default", "init",
     "python", "label", "menu", "if", "elif", "else", "while", "for",
     "pass", "image", "transform", "screen", "style", "translate",
-    "pause", "nvl", "window", "camera", "at",
+    "pause", "nvl", "window", "camera", "at", "extend", "narrator",
 })
 
 BUILTIN_IMAGES = frozenset({"black", "white"})
@@ -109,7 +109,7 @@ def parse_file(filepath: str) -> dict:
                 current_menu = None
             else:
                 m = RE_MENU_CHOICE.match(line)
-                if m and _get_indent(line) == menu_indent + 4:
+                if m and _get_indent(line) > menu_indent:
                     if current_choice is not None:
                         current_menu.choices.append(current_choice)
                     current_choice = MenuChoice(
@@ -120,7 +120,7 @@ def parse_file(filepath: str) -> dict:
                         has_return=False,
                         condition=m.group(3),
                     )
-                    choice_indent = _get_indent(line) + 4
+                    choice_indent = _get_indent(line) + (_get_indent(line) - menu_indent)
                 elif current_choice is not None and indent >= choice_indent:
                     current_choice.content_lines += 1
                     stripped = line.strip()
@@ -179,9 +179,10 @@ def parse_file(filepath: str) -> dict:
                 file=display_path,
                 line=lineno,
             ))
+            var_kind = "default" if line.lstrip().startswith("default") else "define"
             variables.append(Variable(
                 name=m.group(1), file=display_path, line=lineno,
-                kind="define", value=line.split("=", 1)[1].strip(),
+                kind=var_kind, value=line.split("=", 1)[1].strip(),
             ))
             continue
 
