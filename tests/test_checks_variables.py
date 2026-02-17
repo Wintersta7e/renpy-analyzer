@@ -54,3 +54,16 @@ def test_used_variable_not_flagged_unused(tmp_path):
     findings = check(model)
     unused = [f for f in findings if "Unused" in f.title]
     assert len(unused) == 0
+
+
+def test_pattern_case_mismatch(tmp_path):
+    """Detect case mismatch in numbered variable families."""
+    model = _project(tmp_path, """\
+        default marysex4_slow_1 = False
+        default marysex4_slow_2 = False
+        default marysex4_Slow_3 = False
+    """)
+    findings = check(model)
+    case_findings = [f for f in findings if "case mismatch" in f.title.lower()]
+    assert len(case_findings) >= 1
+    assert any("marysex4_Slow_3" in f.title for f in case_findings)

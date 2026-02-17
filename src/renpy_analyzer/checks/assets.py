@@ -18,6 +18,17 @@ def check(project: ProjectModel) -> list[Finding]:
 
     defined_images.update(BUILTIN_IMAGES)
 
+    # Scan game/images/ directory for file-based auto-detected images
+    # Ren'Py auto-registers images from files: game/images/**/name.ext -> image "name"
+    root = Path(project.root_dir)
+    images_dir = root / "images"
+    if images_dir.is_dir():
+        for img_file in images_dir.rglob("*"):
+            if img_file.is_file() and img_file.suffix.lower() in (
+                ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tga",
+            ):
+                defined_images.add(img_file.stem)
+
     for scene in project.scenes:
         if scene.image_name not in defined_images:
             findings.append(Finding(
@@ -38,7 +49,6 @@ def check(project: ProjectModel) -> list[Finding]:
                 ),
             ))
 
-    root = Path(project.root_dir)
     movie_path_re = re.compile(r'Movie\(\s*play\s*=\s*"([^"]+)"')
 
     for img in project.images:
