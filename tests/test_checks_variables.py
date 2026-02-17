@@ -68,3 +68,67 @@ def test_pattern_case_mismatch(tmp_path):
     case_findings = [f for f in findings if "case mismatch" in f.title.lower()]
     assert len(case_findings) >= 1
     assert any("marysex4_Slow_3" in f.title for f in case_findings)
+
+
+def test_define_then_assign_flagged(tmp_path):
+    """define variable later modified via $ should be flagged."""
+    model = _project(tmp_path, """\
+        define points = 0
+    """, """\
+        label start:
+            $ points += 1
+    """)
+    findings = check(model)
+    mutated = [f for f in findings if "define" in f.title.lower() and "mutated" in f.title.lower()]
+    assert len(mutated) == 1
+    assert "points" in mutated[0].title
+    assert mutated[0].severity.name == "CRITICAL"
+
+
+def test_define_not_modified_no_flag(tmp_path):
+    """define variable never modified should not be flagged."""
+    model = _project(tmp_path, """\
+        define e = Character("Eileen")
+    """, """\
+        label start:
+            e "Hello!"
+    """)
+    findings = check(model)
+    mutated = [f for f in findings if "mutated" in f.title.lower()]
+    assert len(mutated) == 0
+
+
+def test_duplicate_default_detected(tmp_path):
+    """Same variable declared with default in two files."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "vars1.rpy").write_text("default points = 0\n", encoding="utf-8")
+    (game / "vars2.rpy").write_text("default points = 10\n", encoding="utf-8")
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    dupes = [f for f in findings if "Duplicate" in f.title and "points" in f.title]
+    assert len(dupes) >= 1
+    assert dupes[0].severity.name == "HIGH"
+
+
+def test_define_persistent_flagged(tmp_path):
+    """define persistent.X should use default instead."""
+    model = _project(tmp_path, """\
+        define persistent.ending_seen = False
+    """)
+    findings = check(model)
+    persist = [f for f in findings if "persistent" in f.title.lower()]
+    assert len(persist) == 1
+    assert persist[0].severity.name == "HIGH"
+
+
+def test_builtin_shadowing_detected(tmp_path):
+    """define/default using a Python builtin name should be flagged."""
+    model = _project(tmp_path, """\
+        default list = []
+        default str = "hello"
+    """)
+    findings = check(model)
+    shadow = [f for f in findings if "shadow" in f.title.lower() or "builtin" in f.title.lower()]
+    assert len(shadow) == 2
+    assert shadow[0].severity.name == "HIGH"

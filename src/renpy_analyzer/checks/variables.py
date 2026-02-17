@@ -6,6 +6,14 @@ import re
 
 from ..models import Finding, ProjectModel, Severity
 
+PYTHON_BUILTINS = frozenset({
+    "list", "dict", "set", "str", "int", "float", "bool", "tuple", "type",
+    "True", "False", "None", "print", "len", "range", "map", "filter",
+    "zip", "enumerate", "sorted", "reversed", "min", "max", "sum", "abs",
+    "all", "any", "input", "open", "format", "id", "hash", "repr",
+    "object", "super", "property", "classmethod", "staticmethod",
+})
+
 
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
@@ -18,6 +26,24 @@ def check(project: ProjectModel) -> list[Finding]:
             defaults.setdefault(var.name, []).append(var)
         elif var.kind in ("assign", "augment"):
             all_refs.add(var.name)
+
+    # Duplicate defaults
+    for name, defs in defaults.items():
+        if len(defs) > 1:
+            locations = ", ".join(f"{d.file}:{d.line}" for d in defs)
+            for d in defs:
+                findings.append(Finding(
+                    severity=Severity.HIGH,
+                    check_name="variables",
+                    title=f"Duplicate default '{name}'",
+                    description=(
+                        f"Variable '{name}' is declared with 'default' {len(defs)} "
+                        f"times: {locations}. Only one declaration will take effect."
+                    ),
+                    file=d.file,
+                    line=d.line,
+                    suggestion="Remove duplicate declarations — keep one 'default' in your variables file.",
+                ))
 
     for cond in project.conditions:
         for name in re.findall(r'\b([A-Za-z_]\w*)\b', cond.expression):
@@ -142,6 +168,65 @@ def check(project: ProjectModel) -> list[Finding]:
                 file=var.file,
                 line=var.line,
                 suggestion="Remove if no longer needed, or keep for save compatibility.",
+            ))
+
+    # Mutable define: define X then $ X = / $ X +=
+    defined_vars = {}
+    for var in project.variables:
+        if var.kind == "define" and "." not in var.name:
+            defined_vars.setdefault(var.name, var)
+
+    for var in project.variables:
+        if var.kind in ("assign", "augment") and var.name in defined_vars:
+            defn = defined_vars[var.name]
+            findings.append(Finding(
+                severity=Severity.CRITICAL,
+                check_name="variables",
+                title=f"Defined variable '{var.name}' mutated",
+                description=(
+                    f"Variable '{var.name}' is declared with 'define' at "
+                    f"{defn.file}:{defn.line} but modified at {var.file}:{var.line}. "
+                    f"'define' variables are NOT saved in save files — changes are "
+                    f"lost on load. Use 'default' instead of 'define' for any "
+                    f"variable that changes during gameplay."
+                ),
+                file=var.file,
+                line=var.line,
+                suggestion=f"Change 'define {var.name} = ...' to 'default {var.name} = ...'.",
+            ))
+
+    # define persistent.X misuse
+    for var in project.variables:
+        if var.kind == "define" and var.name.startswith("persistent."):
+            findings.append(Finding(
+                severity=Severity.HIGH,
+                check_name="variables",
+                title=f"Persistent variable '{var.name}' uses define",
+                description=(
+                    f"'{var.name}' at {var.file}:{var.line} is declared with 'define' "
+                    f"but persistent variables must use 'default' to work correctly "
+                    f"across saves and game sessions."
+                ),
+                file=var.file,
+                line=var.line,
+                suggestion=f"Change 'define {var.name}' to 'default {var.name}'.",
+            ))
+
+    # Builtin name shadowing
+    for var in project.variables:
+        if var.kind in ("default", "define") and var.name in PYTHON_BUILTINS:
+            findings.append(Finding(
+                severity=Severity.HIGH,
+                check_name="variables",
+                title=f"Variable '{var.name}' shadows Python builtin",
+                description=(
+                    f"Variable '{var.name}' at {var.file}:{var.line} shadows a "
+                    f"Python builtin. This can cause cryptic errors when Ren'Py "
+                    f"or Python code tries to use the original builtin."
+                ),
+                file=var.file,
+                line=var.line,
+                suggestion=f"Rename '{var.name}' to avoid shadowing the Python builtin.",
             ))
 
     return findings
