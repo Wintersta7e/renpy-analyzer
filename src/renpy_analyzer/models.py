@@ -48,7 +48,7 @@ class Variable:
     name: str
     file: str
     line: int
-    kind: str  # "default", "define", "assign", "read", "augment"
+    kind: str  # "default", "define", "assign", "augment"
     value: str | None = None
 
 
@@ -97,7 +97,7 @@ class MusicRef:
     path: str
     file: str
     line: int
-    action: str  # "play" or "stop"
+    action: str  # "play", "stop", "sound", "voice", "audio", "queue"
 
 
 @dataclass

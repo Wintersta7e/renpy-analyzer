@@ -26,7 +26,10 @@ def load_project(path: str) -> ProjectModel:
     model.files = [str(f) for f in rpy_files]
 
     for rpy_file in rpy_files:
-        result = parse_file(str(rpy_file))
+        try:
+            result = parse_file(str(rpy_file))
+        except Exception:
+            continue
         rel_path = str(rpy_file.relative_to(scan_dir))
         for key in result:
             for item in result[key]:
@@ -36,7 +39,7 @@ def load_project(path: str) -> ProjectModel:
         model.labels.extend(result["labels"])
         model.jumps.extend(result["jumps"])
         model.calls.extend(result["calls"])
-        model.dynamic_jumps.extend(result.get("dynamic_jumps", []))
+        model.dynamic_jumps.extend(result["dynamic_jumps"])
         model.variables.extend(result["variables"])
         model.menus.extend(result["menus"])
         model.scenes.extend(result["scenes"])

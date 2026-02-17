@@ -258,6 +258,8 @@ class RenpyAnalyzerApp(ctk.CTk):
             self.after(100, self._analysis_complete, findings, project_path)
 
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             self.after(0, self._analysis_failed, str(exc))
 
     # -----------------------------------------------------------------------
@@ -400,6 +402,8 @@ class RenpyAnalyzerApp(ctk.CTk):
             )
             self.after(0, self._pdf_export_done, output_path, None)
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             self.after(0, self._pdf_export_done, output_path, str(exc))
 
     def _pdf_export_done(self, output_path: str, error: str | None) -> None:
