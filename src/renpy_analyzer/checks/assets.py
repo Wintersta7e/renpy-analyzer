@@ -100,6 +100,60 @@ def check(project: ProjectModel) -> list[Finding]:
             else:
                 _check_directory_casing(root, rel_path, img, findings)
 
+    # Check audio file references
+    for ref in project.music:
+        if ref.action == "stop" or not ref.path:
+            continue
+        rel_path = ref.path.lstrip("/")
+        full_path = root / rel_path
+        if not full_path.exists():
+            parent = full_path.parent
+            if parent.exists():
+                actual_files = {f.name.lower(): f.name for f in parent.iterdir()}
+                expected_name = full_path.name.lower()
+                if expected_name in actual_files:
+                    actual_name = actual_files[expected_name]
+                    if actual_name != full_path.name:
+                        findings.append(Finding(
+                            severity=Severity.MEDIUM,
+                            check_name="assets",
+                            title="Audio file path case mismatch",
+                            description=(
+                                f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
+                                f"has case mismatch — actual file is '{actual_name}'. "
+                                f"Works on Windows but fails on Linux/macOS."
+                            ),
+                            file=ref.file,
+                            line=ref.line,
+                            suggestion=f"Change path to match actual filename '{actual_name}'.",
+                        ))
+                else:
+                    findings.append(Finding(
+                        severity=Severity.HIGH,
+                        check_name="assets",
+                        title="Missing audio file",
+                        description=(
+                            f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
+                            f"— file does not exist."
+                        ),
+                        file=ref.file,
+                        line=ref.line,
+                        suggestion="Check the file path and ensure the audio file exists.",
+                    ))
+            else:
+                findings.append(Finding(
+                    severity=Severity.HIGH,
+                    check_name="assets",
+                    title="Missing audio file",
+                    description=(
+                        f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
+                        f"— file does not exist (directory not found)."
+                    ),
+                    file=ref.file,
+                    line=ref.line,
+                    suggestion="Check the file path and ensure the audio file exists.",
+                ))
+
     return findings
 
 

@@ -188,6 +188,32 @@ def test_parse_dialogue(tmp_path):
     assert "scene" not in speakers
 
 
+def test_sound_voice_audio_parsing(tmp_path):
+    """Parser should capture play sound, play voice, queue music, voice statement."""
+    rpy = tmp_path / "test.rpy"
+    rpy.write_text(textwrap.dedent("""\
+        label start:
+            play sound "sfx/click.ogg"
+            play voice "voice/ch1_001.ogg"
+            queue music "bgm/theme2.ogg"
+            voice "voice/line001.ogg"
+            play audio "ambient/rain.ogg"
+    """), encoding="utf-8")
+    result = parse_file(str(rpy))
+    assert len(result["music"]) == 5
+    actions = {m.action for m in result["music"]}
+    assert "sound" in actions
+    assert "voice" in actions
+    assert "queue" in actions
+    assert "audio" in actions
+    paths = {m.path for m in result["music"]}
+    assert "sfx/click.ogg" in paths
+    assert "voice/ch1_001.ogg" in paths
+    assert "bgm/theme2.ogg" in paths
+    assert "voice/line001.ogg" in paths
+    assert "ambient/rain.ogg" in paths
+
+
 def test_dotted_default_not_split(tmp_path):
     path = _write_rpy(tmp_path, """\
         default persistent.s2 = s2

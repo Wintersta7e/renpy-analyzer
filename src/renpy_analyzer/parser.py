@@ -37,6 +37,9 @@ RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
 RE_MUSIC_PLAY = re.compile(r'^\s+play\s+music\s+"([^"]+)"')
 RE_MUSIC_STOP = re.compile(r"^\s+stop\s+music")
+RE_SOUND_PLAY = re.compile(r'^\s+play\s+(sound|voice|audio)\s+"([^"]+)"')
+RE_MUSIC_QUEUE = re.compile(r'^\s+queue\s+(music|sound|voice|audio)\s+"([^"]+)"')
+RE_VOICE_STMT = re.compile(r'^\s+voice\s+"([^"]+)"')
 RE_MENU = re.compile(r"^(\s+)menu\s*:")
 RE_MENU_CHOICE = re.compile(r'^(\s+)"([^"]+)"(?:\s+if\s+(.+?))?\s*:')
 RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"')
@@ -254,6 +257,33 @@ def parse_file(filepath: str) -> dict:
         if m:
             music.append(MusicRef(
                 path="", file=display_path, line=lineno, action="stop",
+            ))
+            continue
+
+        # --- Sound/voice/audio play ---
+        m = RE_SOUND_PLAY.match(line)
+        if m:
+            music.append(MusicRef(
+                path=m.group(2), file=display_path, line=lineno,
+                action=m.group(1),
+            ))
+            continue
+
+        # --- Queue music/sound/voice/audio ---
+        m = RE_MUSIC_QUEUE.match(line)
+        if m:
+            music.append(MusicRef(
+                path=m.group(2), file=display_path, line=lineno,
+                action="queue",
+            ))
+            continue
+
+        # --- Standalone voice statement ---
+        m = RE_VOICE_STMT.match(line)
+        if m:
+            music.append(MusicRef(
+                path=m.group(1), file=display_path, line=lineno,
+                action="voice",
             ))
             continue
 
