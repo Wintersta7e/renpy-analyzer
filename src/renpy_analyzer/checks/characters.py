@@ -26,14 +26,20 @@ def check(project: ProjectModel) -> list[Finding]:
     for speaker, usages in speaker_locations.items():
         if speaker not in defined_chars and speaker not in non_char_defines:
             first = usages[0]
+            if len(usages) > 1:
+                count_note = (
+                    f" (and {len(usages) - 1} other "
+                    f"location{'s' if len(usages) > 2 else ''})"
+                )
+            else:
+                count_note = ""
             findings.append(Finding(
                 severity=Severity.HIGH,
                 check_name="characters",
                 title=f"Undefined speaker '{speaker}'",
                 description=(
                     f"Speaker '{speaker}' is used in dialogue at "
-                    f"{first.file}:{first.line} (and {len(usages) - 1} other "
-                    f"location{'s' if len(usages) > 2 else ''}) but is never "
+                    f"{first.file}:{first.line}{count_note} but is never "
                     f"defined with 'define {speaker} = Character(...)'. "
                 ),
                 file=first.file,

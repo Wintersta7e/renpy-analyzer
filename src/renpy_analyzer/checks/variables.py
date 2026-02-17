@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from ..models import Finding, ProjectModel, Severity
 
@@ -105,7 +106,6 @@ def check(project: ProjectModel) -> list[Finding]:
         bases = [re.sub(r'\d+$', '', m) for m in members]
         if len(set(bases)) > 1:  # different casing in the base part
             # Find the outlier (minority casing)
-            from collections import Counter
             base_counts = Counter(bases)
             majority_base = base_counts.most_common(1)[0][0]
             for m, b in zip(members, bases):

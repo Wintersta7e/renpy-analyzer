@@ -21,15 +21,23 @@ def check(project: ProjectModel) -> list[Finding]:
     defined_images.update(BUILTIN_IMAGES)
 
     # Scan game/images/ directory for file-based auto-detected images
-    # Ren'Py auto-registers images from files: game/images/**/name.ext -> image "name"
+    # Ren'Py auto-registers images from files: game/images/bg/park.png -> image "bg park"
     root = Path(project.root_dir)
     images_dir = root / "images"
     if images_dir.is_dir():
-        for img_file in images_dir.rglob("*"):
-            if img_file.is_file() and img_file.suffix.lower() in (
-                ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tga",
-            ):
-                defined_images.add(img_file.stem)
+        try:
+            for img_file in images_dir.rglob("*"):
+                if img_file.is_file() and img_file.suffix.lower() in (
+                    ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tga",
+                ):
+                    rel = img_file.relative_to(images_dir)
+                    name = " ".join(rel.with_suffix("").parts)
+                    defined_images.add(name)
+                    # Also add just the tag (first word) for tag-based matching
+                    first_word = rel.with_suffix("").parts[0] if rel.parts else img_file.stem
+                    defined_images.add(first_word)
+        except OSError:
+            pass
 
     for scene in project.scenes:
         tag = scene.image_name.split()[0] if " " in scene.image_name else scene.image_name
@@ -61,123 +69,101 @@ def check(project: ProjectModel) -> list[Finding]:
         if not m:
             continue
         rel_path = m.group(1).lstrip("/")
-        full_path = root / rel_path
-
-        if not full_path.exists():
-            parent = full_path.parent
-            if parent.exists():
-                actual_files = {f.name.lower(): f.name for f in parent.iterdir()}
-                expected_name = full_path.name.lower()
-                if expected_name in actual_files:
-                    actual_name = actual_files[expected_name]
-                    if actual_name != full_path.name:
-                        findings.append(Finding(
-                            severity=Severity.MEDIUM,
-                            check_name="assets",
-                            title="Animation path case mismatch",
-                            description=(
-                                f"Image '{img.name}' at {img.file}:{img.line} "
-                                f"references '{rel_path}' but the actual filename "
-                                f"is '{actual_name}'. This works on Windows but fails "
-                                f"on case-sensitive filesystems (Linux/macOS)."
-                            ),
-                            file=img.file,
-                            line=img.line,
-                            suggestion="Change the path to match the actual filename.",
-                        ))
-                else:
-                    findings.append(Finding(
-                        severity=Severity.HIGH,
-                        check_name="assets",
-                        title="Missing animation file",
-                        description=(
-                            f"Image '{img.name}' at {img.file}:{img.line} "
-                            f"references '{rel_path}' but no matching file exists."
-                        ),
-                        file=img.file,
-                        line=img.line,
-                        suggestion="Check the file path and ensure the animation file exists.",
-                    ))
-            else:
-                _check_directory_casing(root, rel_path, img, findings)
+        _check_file_reference(root, rel_path, "Animation", img.file, img.line, findings)
 
     # Check audio file references
     for ref in project.music:
         if ref.action == "stop" or not ref.path:
             continue
         rel_path = ref.path.lstrip("/")
-        full_path = root / rel_path
-        if not full_path.exists():
-            parent = full_path.parent
-            if parent.exists():
+        _check_file_reference(root, rel_path, "Audio", ref.file, ref.line, findings)
+
+    return findings
+
+
+def _check_file_reference(root: Path, rel_path: str, file_desc: str,
+                          ref_file: str, ref_line: int, findings: list[Finding]) -> None:
+    """Check if a referenced file exists, with case-mismatch detection."""
+    full_path = root / rel_path
+    if not full_path.exists():
+        parent = full_path.parent
+        if parent.exists():
+            try:
                 actual_files = {f.name.lower(): f.name for f in parent.iterdir()}
-                expected_name = full_path.name.lower()
-                if expected_name in actual_files:
-                    actual_name = actual_files[expected_name]
-                    if actual_name != full_path.name:
-                        findings.append(Finding(
-                            severity=Severity.MEDIUM,
-                            check_name="assets",
-                            title="Audio file path case mismatch",
-                            description=(
-                                f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
-                                f"has case mismatch — actual file is '{actual_name}'. "
-                                f"Works on Windows but fails on Linux/macOS."
-                            ),
-                            file=ref.file,
-                            line=ref.line,
-                            suggestion=f"Change path to match actual filename '{actual_name}'.",
-                        ))
-                else:
+            except OSError:
+                return
+            expected_name = full_path.name.lower()
+            if expected_name in actual_files:
+                actual_name = actual_files[expected_name]
+                if actual_name != full_path.name:
                     findings.append(Finding(
-                        severity=Severity.HIGH,
+                        severity=Severity.MEDIUM,
                         check_name="assets",
-                        title="Missing audio file",
+                        title=f"{file_desc} path case mismatch",
                         description=(
-                            f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
-                            f"— file does not exist."
+                            f"Reference '{rel_path}' at {ref_file}:{ref_line} "
+                            f"has case mismatch — actual file is '{actual_name}'. "
+                            f"Works on Windows but fails on Linux/macOS."
                         ),
-                        file=ref.file,
-                        line=ref.line,
-                        suggestion="Check the file path and ensure the audio file exists.",
+                        file=ref_file,
+                        line=ref_line,
+                        suggestion=f"Change path to match actual filename '{actual_name}'.",
                     ))
             else:
                 findings.append(Finding(
                     severity=Severity.HIGH,
                     check_name="assets",
-                    title="Missing audio file",
+                    title=f"Missing {file_desc.lower()} file",
                     description=(
-                        f"Audio reference '{rel_path}' at {ref.file}:{ref.line} "
+                        f"Reference '{rel_path}' at {ref_file}:{ref_line} "
+                        f"— file does not exist."
+                    ),
+                    file=ref_file,
+                    line=ref_line,
+                    suggestion=f"Check the file path and ensure the {file_desc.lower()} file exists.",
+                ))
+        else:
+            before = len(findings)
+            _check_directory_casing(root, rel_path, ref_file, ref_line, findings)
+            if len(findings) == before:
+                findings.append(Finding(
+                    severity=Severity.HIGH,
+                    check_name="assets",
+                    title=f"Missing {file_desc.lower()} file",
+                    description=(
+                        f"Reference '{rel_path}' at {ref_file}:{ref_line} "
                         f"— file does not exist (directory not found)."
                     ),
-                    file=ref.file,
-                    line=ref.line,
-                    suggestion="Check the file path and ensure the audio file exists.",
+                    file=ref_file,
+                    line=ref_line,
+                    suggestion=f"Check the file path and ensure the {file_desc.lower()} file exists.",
                 ))
 
-    return findings
 
-
-def _check_directory_casing(root: Path, rel_path: str, img, findings: list[Finding]):
+def _check_directory_casing(root: Path, rel_path: str, ref_file: str,
+                            ref_line: int, findings: list[Finding]) -> None:
     parts = Path(rel_path).parts
     current = root
     for part in parts[:-1]:
         if not current.exists():
             break
-        entries = {e.name.lower(): e.name for e in current.iterdir() if e.is_dir()}
+        try:
+            entries = {e.name.lower(): e.name for e in current.iterdir() if e.is_dir()}
+        except OSError:
+            break
         if part.lower() in entries and entries[part.lower()] != part:
             actual = entries[part.lower()]
             findings.append(Finding(
                 severity=Severity.MEDIUM,
                 check_name="assets",
-                title="Animation directory case mismatch",
+                title="Directory case mismatch",
                 description=(
-                    f"Image '{img.name}' at {img.file}:{img.line} — "
+                    f"Reference at {ref_file}:{ref_line} — "
                     f"path component '{part}' should be '{actual}' "
                     f"(case mismatch). Works on Windows, fails on Linux/macOS."
                 ),
-                file=img.file,
-                line=img.line,
+                file=ref_file,
+                line=ref_line,
                 suggestion=f"Change '{part}' to '{actual}' in the path.",
             ))
             current = current / actual
