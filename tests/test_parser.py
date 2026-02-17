@@ -220,3 +220,19 @@ def test_dotted_default_not_split(tmp_path):
     """)
     result = parse_file(path)
     assert result["variables"][0].name == "persistent.s2"
+
+
+def test_multiword_scene_show(tmp_path):
+    """scene bg park sunset should capture full image name and tag."""
+    rpy = tmp_path / "test.rpy"
+    rpy.write_text(textwrap.dedent("""\
+        label start:
+            scene bg park sunset with dissolve
+            show eileen happy at right
+    """), encoding="utf-8")
+    result = parse_file(str(rpy))
+    assert len(result["scenes"]) == 1
+    assert result["scenes"][0].image_name == "bg park sunset"
+    assert result["scenes"][0].transition == "dissolve"
+    assert len(result["shows"]) == 1
+    assert result["shows"][0].image_name == "eileen happy"

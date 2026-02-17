@@ -32,7 +32,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 defined_images.add(img_file.stem)
 
     for scene in project.scenes:
-        if scene.image_name not in defined_images:
+        tag = scene.image_name.split()[0] if " " in scene.image_name else scene.image_name
+        if scene.image_name not in defined_images and tag not in defined_images:
             findings.append(Finding(
                 severity=Severity.MEDIUM,
                 check_name="assets",
