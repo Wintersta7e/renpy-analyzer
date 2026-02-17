@@ -13,3 +13,6 @@ venv/
 *.pdf
 .idea/
 docs/plans/
+build_venv/
+build/
+build_helper.py

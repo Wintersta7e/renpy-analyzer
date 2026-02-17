@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import tkinter as tk
 from collections import Counter
 from pathlib import Path
 from tkinter import BooleanVar, StringVar, filedialog
@@ -27,7 +28,6 @@ SEVERITY_COLORS: dict[Severity, str] = {
     Severity.STYLE: "#6C757D",
 }
 
-# Human-friendly labels for checks shown in the GUI
 _CHECK_DESCRIPTIONS: dict[str, str] = {
     "Labels": "Labels & Jumps",
     "Variables": "Variables",
@@ -44,7 +44,6 @@ class RenpyAnalyzerApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
 
-        # -- Window setup --
         self.title("Ren'Py Analyzer")
         self.geometry("900x700")
         self.minsize(720, 560)
@@ -56,274 +55,202 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._analysis_thread: threading.Thread | None = None
         self._game_dir_note = StringVar(value="")
 
-        # Build all frames
-        self._build_header()
-        self._build_path_selector()
-        self._build_checks()
-        self._build_action_buttons()
-        self._build_progress()
-        self._build_results()
-        self._build_export()
-        self._build_status_bar()
+        self._build_top_section()
+        self._build_bottom_section()
+        self._build_middle_section()
 
     # -----------------------------------------------------------------------
     # UI construction
     # -----------------------------------------------------------------------
 
-    def _build_header(self) -> None:
-        """App title and version at the top."""
-        frame = ctk.CTkFrame(self, fg_color="transparent")
-        frame.pack(fill="x", padx=20, pady=(15, 5))
+    def _build_top_section(self) -> None:
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        top.pack(side="top", fill="x")
 
-        title_label = ctk.CTkLabel(
-            frame,
-            text="Ren'Py Analyzer",
+        # Title
+        title_frame = ctk.CTkFrame(top, fg_color="transparent")
+        title_frame.pack(fill="x", padx=20, pady=(15, 5))
+        ctk.CTkLabel(
+            title_frame, text="Ren'Py Analyzer",
             font=ctk.CTkFont(size=24, weight="bold"),
-        )
-        title_label.pack(side="left")
+        ).pack(side="left")
+        ctk.CTkLabel(
+            title_frame, text=f"v{__version__}",
+            font=ctk.CTkFont(size=12), text_color="gray",
+        ).pack(side="left", padx=(10, 0), pady=(8, 0))
 
-        version_label = ctk.CTkLabel(
-            frame,
-            text=f"v{__version__}",
-            font=ctk.CTkFont(size=12),
-            text_color="gray",
-        )
-        version_label.pack(side="left", padx=(10, 0), pady=(8, 0))
-
-    def _build_path_selector(self) -> None:
-        """Folder path entry + browse button."""
-        frame = ctk.CTkFrame(self)
-        frame.pack(fill="x", padx=20, pady=(5, 5))
-
-        label = ctk.CTkLabel(frame, text="Project Path:", font=ctk.CTkFont(size=13))
-        label.pack(side="left", padx=(10, 5), pady=10)
-
+        # Path selector
+        path_frame = ctk.CTkFrame(top)
+        path_frame.pack(fill="x", padx=20, pady=(5, 0))
+        ctk.CTkLabel(
+            path_frame, text="Project Path:", font=ctk.CTkFont(size=13),
+        ).pack(side="left", padx=(10, 5), pady=10)
         self._path_entry = ctk.CTkEntry(
-            frame,
-            textvariable=self._path_var,
-            placeholder_text="Select a Ren'Py project folder...",
-            width=500,
+            path_frame, textvariable=self._path_var,
+            placeholder_text="Select a Ren'Py project folder...", width=500,
         )
         self._path_entry.pack(side="left", fill="x", expand=True, padx=5, pady=10)
+        ctk.CTkButton(
+            path_frame, text="Browse...", width=100, command=self._browse_folder,
+        ).pack(side="right", padx=(5, 10), pady=10)
 
-        browse_btn = ctk.CTkButton(
-            frame,
-            text="Browse...",
-            width=100,
-            command=self._browse_folder,
-        )
-        browse_btn.pack(side="right", padx=(5, 10), pady=10)
+        # Auto-detection note
+        ctk.CTkLabel(
+            top, textvariable=self._game_dir_note,
+            font=ctk.CTkFont(size=11), text_color="#28A745",
+        ).pack(fill="x", padx=35, pady=(0, 2))
 
-        # Auto-detection note (below the path row)
-        self._note_label = ctk.CTkLabel(
-            self,
-            textvariable=self._game_dir_note,
-            font=ctk.CTkFont(size=11),
-            text_color="#28A745",
-        )
-        self._note_label.pack(fill="x", padx=35, pady=(0, 2))
-
-    def _build_checks(self) -> None:
-        """Checkboxes for each check module in a 2x3 grid."""
-        outer = ctk.CTkFrame(self)
-        outer.pack(fill="x", padx=20, pady=(5, 5))
-
-        heading = ctk.CTkLabel(
-            outer,
-            text="Checks to Run:",
+        # Check toggles
+        checks_frame = ctk.CTkFrame(top)
+        checks_frame.pack(fill="x", padx=20, pady=(5, 5))
+        ctk.CTkLabel(
+            checks_frame, text="Checks to Run:",
             font=ctk.CTkFont(size=13, weight="bold"),
-        )
-        heading.grid(row=0, column=0, columnspan=3, sticky="w", padx=10, pady=(8, 4))
+        ).grid(row=0, column=0, columnspan=3, sticky="w", padx=10, pady=(8, 4))
 
-        check_names = list(ALL_CHECKS.keys())
-        for idx, name in enumerate(check_names):
+        for idx, name in enumerate(ALL_CHECKS.keys()):
             var = BooleanVar(value=True)
             self._check_vars[name] = var
-            display = _CHECK_DESCRIPTIONS.get(name, name)
-            cb = ctk.CTkCheckBox(
-                outer,
-                text=display,
-                variable=var,
-                font=ctk.CTkFont(size=12),
-            )
-            row = 1 + idx // 3
-            col = idx % 3
-            cb.grid(row=row, column=col, sticky="w", padx=(15, 10), pady=4)
-
-        # Configure columns to distribute evenly
+            ctk.CTkCheckBox(
+                checks_frame, text=_CHECK_DESCRIPTIONS.get(name, name),
+                variable=var, font=ctk.CTkFont(size=12),
+            ).grid(row=1 + idx // 3, column=idx % 3, sticky="w", padx=(15, 10), pady=4)
         for c in range(3):
-            outer.columnconfigure(c, weight=1)
+            checks_frame.columnconfigure(c, weight=1)
+        ctk.CTkLabel(checks_frame, text="").grid(row=3, column=0, pady=(0, 6))
 
-        # Padding at bottom of frame
-        spacer = ctk.CTkLabel(outer, text="")
-        spacer.grid(row=3, column=0, pady=(0, 6))
-
-    def _build_action_buttons(self) -> None:
-        """Central 'Analyze Game' button."""
-        frame = ctk.CTkFrame(self, fg_color="transparent")
-        frame.pack(fill="x", padx=20, pady=(5, 5))
-
+        # Analyze button
         self._analyze_btn = ctk.CTkButton(
-            frame,
-            text="Analyze Game",
+            top, text="Analyze Game",
             font=ctk.CTkFont(size=15, weight="bold"),
-            height=40,
-            width=200,
-            command=self._start_analysis,
+            height=40, width=200, command=self._start_analysis,
         )
-        self._analyze_btn.pack(pady=5)
+        self._analyze_btn.pack(pady=(5, 8))
 
-    def _build_progress(self) -> None:
-        """Progress bar + status label (initially hidden)."""
-        self._progress_frame = ctk.CTkFrame(self, fg_color="transparent")
-        # Not packed initially -- shown when analysis starts.
+    def _build_bottom_section(self) -> None:
+        bottom = ctk.CTkFrame(self, fg_color="transparent")
+        bottom.pack(side="bottom", fill="x")
 
-        self._progress_label = ctk.CTkLabel(
-            self._progress_frame,
-            text="Preparing...",
-            font=ctk.CTkFont(size=12),
-        )
-        self._progress_label.pack(fill="x", padx=10, pady=(4, 2))
+        self._status_var = StringVar(value="Ready")
+        ctk.CTkLabel(
+            bottom, textvariable=self._status_var,
+            font=ctk.CTkFont(size=11), text_color="gray", anchor="w",
+        ).pack(fill="x", side="bottom", padx=20, pady=(2, 8))
 
-        self._progress_bar = ctk.CTkProgressBar(self._progress_frame, width=400)
-        self._progress_bar.pack(fill="x", padx=40, pady=(2, 6))
-        self._progress_bar.set(0)
-
-    def _build_results(self) -> None:
-        """Scrollable results frame with summary and finding rows."""
-        # Summary bar
-        self._summary_frame = ctk.CTkFrame(self, fg_color="transparent")
-        # Not packed initially.
-
-        self._summary_label = ctk.CTkLabel(
-            self._summary_frame,
-            text="",
-            font=ctk.CTkFont(size=13, weight="bold"),
-        )
-        self._summary_label.pack(fill="x", padx=20, pady=(6, 2))
-
-        # Scrollable results area
-        self._results_frame = ctk.CTkScrollableFrame(
-            self,
-            label_text="Findings",
-            label_font=ctk.CTkFont(size=12, weight="bold"),
-        )
-        # Not packed initially.
-
-    def _build_export(self) -> None:
-        """Export PDF button (disabled until analysis finishes)."""
-        self._export_frame = ctk.CTkFrame(self, fg_color="transparent")
-        # Not packed initially.
-
+        self._export_frame = ctk.CTkFrame(bottom, fg_color="transparent")
         self._export_btn = ctk.CTkButton(
-            self._export_frame,
-            text="Export PDF Report",
+            self._export_frame, text="Export PDF Report",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=36,
-            width=180,
-            state="disabled",
-            command=self._export_pdf,
+            height=36, width=180, state="disabled", command=self._export_pdf,
         )
         self._export_btn.pack(pady=6)
 
-    def _build_status_bar(self) -> None:
-        """Bottom status bar."""
-        self._status_var = StringVar(value="Ready")
-        self._status_bar = ctk.CTkLabel(
-            self,
-            textvariable=self._status_var,
-            font=ctk.CTkFont(size=11),
-            text_color="gray",
-            anchor="w",
+    def _build_middle_section(self) -> None:
+        self._middle = ctk.CTkFrame(self, fg_color="transparent")
+        self._middle.pack(side="top", fill="both", expand=True, padx=20)
+
+        # Progress (shown during analysis)
+        self._progress_frame = ctk.CTkFrame(self._middle, fg_color="transparent")
+        self._progress_label = ctk.CTkLabel(
+            self._progress_frame, text="Preparing...", font=ctk.CTkFont(size=12),
         )
-        self._status_bar.pack(fill="x", side="bottom", padx=20, pady=(2, 8))
+        self._progress_label.pack(fill="x", padx=10, pady=(10, 2))
+        self._progress_bar = ctk.CTkProgressBar(self._progress_frame, width=400)
+        self._progress_bar.pack(fill="x", padx=40, pady=(2, 10))
+        self._progress_bar.set(0)
+
+        # Summary label (shown after analysis)
+        self._summary_label = ctk.CTkLabel(
+            self._middle, text="", font=ctk.CTkFont(size=13, weight="bold"),
+        )
+
+        # Results: a single Textbox widget (fast, lightweight)
+        self._results_box = ctk.CTkTextbox(
+            self._middle,
+            font=ctk.CTkFont(size=12, family="Courier"),
+            wrap="word",
+            state="disabled",
+            activate_scrollbars=True,
+        )
+        # Configure text tags for severity colours on the underlying tk Text widget
+        inner: tk.Text = self._results_box._textbox
+        inner.tag_configure("severity_critical", foreground="#DC3545", font=("Courier", 11, "bold"))
+        inner.tag_configure("severity_high", foreground="#FD7E14", font=("Courier", 11, "bold"))
+        inner.tag_configure("severity_medium", foreground="#FFC107", font=("Courier", 11, "bold"))
+        inner.tag_configure("severity_low", foreground="#28A745", font=("Courier", 11, "bold"))
+        inner.tag_configure("severity_style", foreground="#6C757D", font=("Courier", 11, "bold"))
+        inner.tag_configure("location", foreground="#888888", font=("Courier", 10))
+        inner.tag_configure("suggestion", foreground="#28A745", font=("Courier", 10))
+        inner.tag_configure("title", foreground="#FFFFFF", font=("Courier", 12, "bold"))
+        inner.tag_configure("separator", foreground="#444444")
 
     # -----------------------------------------------------------------------
     # Actions
     # -----------------------------------------------------------------------
 
     def _browse_folder(self) -> None:
-        """Open a folder selection dialog."""
         folder = filedialog.askdirectory(title="Select Ren'Py Project Folder")
         if folder:
             self._path_var.set(folder)
-            self._detect_game_dir(folder)
-
-    def _detect_game_dir(self, path: str) -> None:
-        """Check if the selected folder contains a game/ subfolder."""
-        game_sub = Path(path) / "game"
-        if game_sub.is_dir():
-            self._game_dir_note.set("game/ subfolder detected -- will scan automatically.")
-        else:
-            self._game_dir_note.set("")
+            game_sub = Path(folder) / "game"
+            if game_sub.is_dir():
+                self._game_dir_note.set("game/ subfolder detected — will scan automatically.")
+            else:
+                self._game_dir_note.set("")
 
     def _start_analysis(self) -> None:
-        """Validate inputs and launch analysis in background thread."""
         project_path = self._path_var.get().strip()
         if not project_path:
             self._status_var.set("Please select a project folder first.")
             return
-
         if not Path(project_path).is_dir():
             self._status_var.set("Selected path is not a valid directory.")
             return
 
-        # Determine which checks are enabled
         enabled = [name for name, var in self._check_vars.items() if var.get()]
         if not enabled:
             self._status_var.set("Please enable at least one check.")
             return
 
-        # Disable the button to prevent double-clicks
         self._analyze_btn.configure(state="disabled")
         self._export_btn.configure(state="disabled")
         self._findings.clear()
 
-        # Show progress
-        self._progress_frame.pack(fill="x", padx=20, pady=(2, 2), before=self._status_bar)
-        self._progress_bar.set(0)
-        self._progress_label.configure(text="Parsing project files...")
-
-        # Hide old results
-        self._summary_frame.pack_forget()
-        self._results_frame.pack_forget()
+        # Hide old results, show progress
+        self._summary_label.pack_forget()
+        self._results_box.pack_forget()
         self._export_frame.pack_forget()
 
-        # Clear old finding widgets from scrollable frame
-        for widget in self._results_frame.winfo_children():
-            widget.destroy()
+        self._results_box.configure(state="normal")
+        self._results_box.delete("1.0", "end")
+        self._results_box.configure(state="disabled")
 
-        # Launch background thread
+        self._progress_bar.set(0)
+        self._progress_label.configure(text="Parsing project files...")
+        self._progress_frame.pack(fill="x", pady=(10, 10))
+
         self._analysis_thread = threading.Thread(
-            target=self._run_analysis,
-            args=(project_path, enabled),
-            daemon=True,
+            target=self._run_analysis, args=(project_path, enabled), daemon=True,
         )
         self._analysis_thread.start()
 
     def _run_analysis(self, project_path: str, enabled_checks: list[str]) -> None:
-        """Run analysis in a background thread (do NOT touch GUI directly)."""
         try:
-            # Phase 0: parse project
             self.after(0, self._update_progress, "Parsing project files...", 0.0)
             project = load_project(project_path)
 
             file_count = len(project.files)
-            self.after(0, self._update_progress, f"Parsed {file_count} .rpy file(s).", 0.1)
+            self.after(0, self._update_progress, f"Parsed {file_count} .rpy files.", 0.1)
 
             total_checks = len(enabled_checks)
             findings: list[Finding] = []
 
             for idx, check_name in enumerate(enabled_checks):
                 fraction = 0.1 + 0.85 * (idx / total_checks)
-                status_msg = f"Running check: {check_name}..."
-                self.after(0, self._update_progress, status_msg, fraction)
-
+                self.after(0, self._update_progress, f"Running check: {check_name}...", fraction)
                 check_fn = ALL_CHECKS[check_name]
-                results = check_fn(project)
-                findings.extend(results)
+                findings.extend(check_fn(project))
 
-            # Sort findings by severity (most severe first)
             findings.sort(key=lambda f: f.severity)
 
             self.after(0, self._update_progress, "Analysis complete.", 1.0)
@@ -333,28 +260,24 @@ class RenpyAnalyzerApp(ctk.CTk):
             self.after(0, self._analysis_failed, str(exc))
 
     # -----------------------------------------------------------------------
-    # GUI update callbacks (called via self.after from thread)
+    # GUI callbacks
     # -----------------------------------------------------------------------
 
     def _update_progress(self, text: str, fraction: float) -> None:
-        """Update progress bar and label from the main thread."""
         self._progress_label.configure(text=text)
         self._progress_bar.set(fraction)
         self._status_var.set(text)
 
     def _analysis_complete(self, findings: list[Finding], project_path: str) -> None:
-        """Populate results after analysis finishes."""
         self._findings = findings
         self._project_path = project_path
 
-        # Hide progress
         self._progress_frame.pack_forget()
 
-        # Re-enable buttons
         self._analyze_btn.configure(state="normal")
         self._export_btn.configure(state="normal")
 
-        # Build summary text
+        # Summary
         total = len(findings)
         counts = Counter(f.severity for f in findings)
         parts = []
@@ -367,143 +290,81 @@ class RenpyAnalyzerApp(ctk.CTk):
             summary += ": " + ", ".join(parts)
 
         self._summary_label.configure(text=summary)
+        self._summary_label.pack(fill="x", padx=5, pady=(6, 2))
+        self._results_box.pack(fill="both", expand=True, pady=(4, 4))
+        self._export_frame.pack(fill="x", pady=(2, 2))
 
-        # Show summary, results, export
-        self._summary_frame.pack(fill="x", padx=20, pady=(6, 0), before=self._status_bar)
-        self._results_frame.pack(
-            fill="both", expand=True, padx=20, pady=(4, 4),
-            before=self._status_bar,
-        )
-        self._export_frame.pack(fill="x", padx=20, pady=(2, 2), before=self._status_bar)
-
-        # Populate findings
-        self._populate_findings(findings)
+        # Populate text widget
+        self._populate_results(findings)
 
         if total == 0:
-            self._status_var.set("Analysis complete -- no issues found!")
+            self._status_var.set("Analysis complete — no issues found!")
         else:
-            self._status_var.set(f"Analysis complete -- {total} finding(s).")
+            self._status_var.set(f"Analysis complete — {total} finding(s).")
 
     def _analysis_failed(self, error_msg: str) -> None:
-        """Handle an analysis failure."""
         self._progress_frame.pack_forget()
         self._analyze_btn.configure(state="normal")
         self._status_var.set(f"Error: {error_msg}")
 
     # -----------------------------------------------------------------------
-    # Result display
+    # Result display (single text widget — fast)
     # -----------------------------------------------------------------------
 
-    def _populate_findings(self, findings: list[Finding]) -> None:
-        """Create a row widget for each finding inside the scrollable frame."""
+    def _populate_results(self, findings: list[Finding]) -> None:
+        """Write all findings into the textbox using tags for colour."""
+        self._results_box.configure(state="normal")
+        self._results_box.delete("1.0", "end")
+        inner: tk.Text = self._results_box._textbox
+
         if not findings:
-            empty = ctk.CTkLabel(
-                self._results_frame,
-                text="No issues found -- your project looks clean!",
-                font=ctk.CTkFont(size=13),
-                text_color="#28A745",
-            )
-            empty.pack(fill="x", padx=10, pady=20)
+            inner.insert("end", "No issues found — your project looks clean!\n")
+            self._results_box.configure(state="disabled")
             return
 
+        sev_tag_map = {
+            Severity.CRITICAL: "severity_critical",
+            Severity.HIGH: "severity_high",
+            Severity.MEDIUM: "severity_medium",
+            Severity.LOW: "severity_low",
+            Severity.STYLE: "severity_style",
+        }
+
         for idx, finding in enumerate(findings):
-            self._create_finding_row(finding, idx + 1)
+            sev = finding.severity
+            tag = sev_tag_map[sev]
 
-    def _create_finding_row(self, finding: Finding, index: int) -> None:
-        """Build a single finding row inside the scrollable results frame."""
-        sev = finding.severity
-        color = SEVERITY_COLORS[sev]
+            # Severity badge + index
+            inner.insert("end", f"[{sev.name}]", tag)
+            inner.insert("end", f"  #{idx + 1}  ", "location")
+            inner.insert("end", f"{finding.title}\n", "title")
 
-        row = ctk.CTkFrame(self._results_frame)
-        row.pack(fill="x", padx=4, pady=(2, 2))
+            # Location
+            inner.insert("end", f"  {finding.file}:{finding.line}\n", "location")
 
-        # Left-side severity indicator (coloured bar)
-        indicator = ctk.CTkFrame(row, width=6, fg_color=color, corner_radius=3)
-        indicator.pack(side="left", fill="y", padx=(4, 6), pady=4)
+            # Description
+            desc = finding.description
+            if len(desc) > 300:
+                desc = desc[:297] + "..."
+            inner.insert("end", f"  {desc}\n")
 
-        # Content area
-        content = ctk.CTkFrame(row, fg_color="transparent")
-        content.pack(side="left", fill="both", expand=True, pady=4)
+            # Suggestion
+            if finding.suggestion:
+                sugg = finding.suggestion
+                if len(sugg) > 300:
+                    sugg = sugg[:297] + "..."
+                inner.insert("end", f"  → {sugg}\n", "suggestion")
 
-        # Top line: severity badge + title
-        top_line = ctk.CTkFrame(content, fg_color="transparent")
-        top_line.pack(fill="x", anchor="w")
+            # Separator
+            inner.insert("end", "  " + "─" * 80 + "\n", "separator")
 
-        badge = ctk.CTkLabel(
-            top_line,
-            text=f" {sev.name} ",
-            font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color=color,
-            text_color="white" if sev != Severity.MEDIUM else "#1a1a1a",
-            corner_radius=4,
-            height=20,
-        )
-        badge.pack(side="left", padx=(0, 6))
-
-        title_label = ctk.CTkLabel(
-            top_line,
-            text=finding.title,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            anchor="w",
-        )
-        title_label.pack(side="left", fill="x", expand=True)
-
-        # Index number on the right
-        idx_label = ctk.CTkLabel(
-            top_line,
-            text=f"#{index}",
-            font=ctk.CTkFont(size=10),
-            text_color="gray",
-        )
-        idx_label.pack(side="right", padx=(4, 8))
-
-        # Second line: file:line
-        location = f"{finding.file}:{finding.line}"
-        loc_label = ctk.CTkLabel(
-            content,
-            text=location,
-            font=ctk.CTkFont(size=11, family="Courier"),
-            text_color="gray",
-            anchor="w",
-        )
-        loc_label.pack(fill="x", anchor="w", pady=(1, 0))
-
-        # Third line: description (truncated if very long)
-        desc_text = finding.description
-        if len(desc_text) > 200:
-            desc_text = desc_text[:197] + "..."
-        desc_label = ctk.CTkLabel(
-            content,
-            text=desc_text,
-            font=ctk.CTkFont(size=11),
-            anchor="w",
-            wraplength=700,
-            justify="left",
-        )
-        desc_label.pack(fill="x", anchor="w", pady=(1, 0))
-
-        # Fourth line: suggestion (if any)
-        if finding.suggestion:
-            sugg_text = finding.suggestion
-            if len(sugg_text) > 200:
-                sugg_text = sugg_text[:197] + "..."
-            sugg_label = ctk.CTkLabel(
-                content,
-                text=f"Suggestion: {sugg_text}",
-                font=ctk.CTkFont(size=10),
-                text_color="#28A745",
-                anchor="w",
-                wraplength=700,
-                justify="left",
-            )
-            sugg_label.pack(fill="x", anchor="w", pady=(1, 2))
+        self._results_box.configure(state="disabled")
 
     # -----------------------------------------------------------------------
     # PDF export
     # -----------------------------------------------------------------------
 
     def _export_pdf(self) -> None:
-        """Open a save-file dialog and generate the PDF report."""
         if not self._findings:
             self._status_var.set("No findings to export.")
             return
@@ -519,22 +380,44 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         self._status_var.set("Generating PDF report...")
         self._export_btn.configure(state="disabled")
+        self._analyze_btn.configure(state="disabled")
 
+        # Run PDF generation in a background thread to avoid freezing
+        threading.Thread(
+            target=self._run_pdf_export,
+            args=(output_path,),
+            daemon=True,
+        ).start()
+
+    def _run_pdf_export(self, output_path: str) -> None:
         try:
             project_path = getattr(self, "_project_path", "")
             game_name = Path(project_path).name if project_path else "Ren'Py Project"
-
             generate_pdf(
-                findings=self._findings,
-                output_path=output_path,
-                game_name=game_name,
-                game_path=project_path,
+                findings=self._findings, output_path=output_path,
+                game_name=game_name, game_path=project_path,
             )
-            self._status_var.set(f"PDF saved to {output_path}")
+            self.after(0, self._pdf_export_done, output_path, None)
         except Exception as exc:
-            self._status_var.set(f"PDF export failed: {exc}")
-        finally:
-            self._export_btn.configure(state="normal")
+            self.after(0, self._pdf_export_done, output_path, str(exc))
+
+    def _pdf_export_done(self, output_path: str, error: str | None) -> None:
+        self._export_btn.configure(state="normal")
+        self._analyze_btn.configure(state="normal")
+        if error:
+            self._status_var.set(f"PDF export failed: {error}")
+        else:
+            self._status_var.set(f"PDF saved to {output_path}")
+
+    # -----------------------------------------------------------------------
+    # Clean shutdown
+    # -----------------------------------------------------------------------
+
+    def destroy(self) -> None:
+        """Override destroy to ensure clean exit without 'Not Responding'."""
+        # Force-kill any background threads by just exiting
+        import os
+        os._exit(0)
 
 
 def main() -> None:
