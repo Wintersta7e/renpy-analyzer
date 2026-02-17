@@ -35,6 +35,7 @@ _CHECK_DESCRIPTIONS: dict[str, str] = {
     "Menus": "Menus",
     "Assets": "Assets",
     "Characters": "Characters",
+    "Flow": "Unreachable Code",
 }
 
 
