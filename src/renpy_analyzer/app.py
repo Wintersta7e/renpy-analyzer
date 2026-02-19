@@ -58,6 +58,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._check_vars: dict[str, BooleanVar] = {}
         self._findings: list[Finding] = []
         self._analysis_thread: threading.Thread | None = None
+        self._cancel_event = threading.Event()
         self._game_dir_note = StringVar(value="")
 
         self._build_top_section()
@@ -161,8 +162,14 @@ class RenpyAnalyzerApp(ctk.CTk):
         )
         self._progress_label.pack(fill="x", padx=10, pady=(10, 2))
         self._progress_bar = ctk.CTkProgressBar(self._progress_frame, width=400)
-        self._progress_bar.pack(fill="x", padx=40, pady=(2, 10))
+        self._progress_bar.pack(fill="x", padx=40, pady=(2, 4))
         self._progress_bar.set(0)
+        self._cancel_btn = ctk.CTkButton(
+            self._progress_frame, text="Cancel", width=100,
+            fg_color="#DC3545", hover_color="#A71D2A",
+            command=self._request_cancel,
+        )
+        self._cancel_btn.pack(pady=(2, 8))
 
         # Summary label (shown after analysis)
         self._summary_label = ctk.CTkLabel(
@@ -230,6 +237,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._results_box.delete("1.0", "end")
         self._results_box.configure(state="disabled")
 
+        self._cancel_event.clear()
+        self._cancel_btn.configure(state="normal")
         self._progress_bar.set(0)
         self._progress_label.configure(text="Parsing project files...")
         self._progress_frame.pack(fill="x", pady=(10, 10))
@@ -251,10 +260,19 @@ class RenpyAnalyzerApp(ctk.CTk):
             findings: list[Finding] = []
 
             for idx, check_name in enumerate(enabled_checks):
+                if self._cancel_event.is_set():
+                    logger.info("Analysis cancelled by user")
+                    self.after(0, self._analysis_cancelled)
+                    return
                 fraction = 0.1 + 0.85 * (idx / total_checks)
                 self.after(0, self._update_progress, f"Running check: {check_name}...", fraction)
                 check_fn = ALL_CHECKS[check_name]
                 findings.extend(check_fn(project))
+
+            if self._cancel_event.is_set():
+                logger.info("Analysis cancelled by user")
+                self.after(0, self._analysis_cancelled)
+                return
 
             findings.sort(key=lambda f: f.severity)
 
@@ -308,6 +326,16 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._status_var.set("Analysis complete — no issues found!")
         else:
             self._status_var.set(f"Analysis complete — {total} finding(s).")
+
+    def _request_cancel(self) -> None:
+        self._cancel_event.set()
+        self._cancel_btn.configure(state="disabled")
+        self._progress_label.configure(text="Cancelling...")
+
+    def _analysis_cancelled(self) -> None:
+        self._progress_frame.pack_forget()
+        self._analyze_btn.configure(state="normal")
+        self._status_var.set("Analysis cancelled.")
 
     def _analysis_failed(self, error_msg: str) -> None:
         self._progress_frame.pack_forget()
@@ -385,6 +413,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         if not output_path:
             return
 
+        self._cancel_event.clear()
         self._status_var.set("Generating PDF report...")
         self._export_btn.configure(state="disabled")
         self._analyze_btn.configure(state="disabled")
