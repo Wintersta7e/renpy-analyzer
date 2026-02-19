@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import tkinter as tk
 from collections import Counter
@@ -12,9 +13,12 @@ import customtkinter as ctk
 
 from . import __version__
 from .checks import ALL_CHECKS
+from .log import setup_logging
 from .models import Finding, Severity
 from .project import load_project
 from .report.pdf import generate_pdf
+
+logger = logging.getLogger("renpy_analyzer.app")
 
 # ---------------------------------------------------------------------------
 # Severity colours for GUI display
@@ -254,12 +258,12 @@ class RenpyAnalyzerApp(ctk.CTk):
 
             findings.sort(key=lambda f: f.severity)
 
+            logger.info("Analysis complete: %d findings from %d checks", len(findings), total_checks)
             self.after(0, self._update_progress, "Analysis complete.", 1.0)
             self.after(100, self._analysis_complete, findings, project_path)
 
         except Exception as exc:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Analysis failed")
             self.after(0, self._analysis_failed, str(exc))
 
     # -----------------------------------------------------------------------
@@ -400,10 +404,10 @@ class RenpyAnalyzerApp(ctk.CTk):
                 findings=self._findings, output_path=output_path,
                 game_name=game_name, game_path=project_path,
             )
+            logger.info("PDF exported to %s", output_path)
             self.after(0, self._pdf_export_done, output_path, None)
         except Exception as exc:
-            import traceback
-            traceback.print_exc()
+            logger.exception("PDF export failed")
             self.after(0, self._pdf_export_done, output_path, str(exc))
 
     def _pdf_export_done(self, output_path: str, error: str | None) -> None:
@@ -427,6 +431,7 @@ class RenpyAnalyzerApp(ctk.CTk):
 
 def main() -> None:
     """Entry point for the GUI application."""
+    setup_logging()
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
     app = RenpyAnalyzerApp()

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
 from ..models import Finding, ProjectModel, Severity
 from ..parser import BUILTIN_IMAGES
+
+logger = logging.getLogger("renpy_analyzer.checks.assets")
 
 
 def check(project: ProjectModel) -> list[Finding]:
@@ -37,7 +40,7 @@ def check(project: ProjectModel) -> list[Finding]:
                     first_word = rel.with_suffix("").parts[0] if rel.parts else img_file.stem
                     defined_images.add(first_word)
         except OSError:
-            pass
+            logger.warning("Cannot scan images directory %s", images_dir, exc_info=True)
 
     for scene in project.scenes:
         tag = scene.image_name.split()[0] if " " in scene.image_name else scene.image_name
@@ -91,6 +94,7 @@ def _check_file_reference(root: Path, rel_path: str, file_desc: str,
             try:
                 actual_files = {f.name.lower(): f.name for f in parent.iterdir()}
             except OSError:
+                logger.warning("Cannot list directory %s", parent, exc_info=True)
                 return
             expected_name = full_path.name.lower()
             if expected_name in actual_files:
@@ -150,6 +154,7 @@ def _check_directory_casing(root: Path, rel_path: str, ref_file: str,
         try:
             entries = {e.name.lower(): e.name for e in current.iterdir() if e.is_dir()}
         except OSError:
+            logger.warning("Cannot list directory %s", current, exc_info=True)
             break
         if part.lower() in entries and entries[part.lower()] != part:
             actual = entries[part.lower()]

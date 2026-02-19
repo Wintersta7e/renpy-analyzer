@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from .models import ProjectModel
 from .parser import parse_file
+
+logger = logging.getLogger("renpy_analyzer.project")
 
 
 def load_project(path: str) -> ProjectModel:
@@ -29,6 +32,7 @@ def load_project(path: str) -> ProjectModel:
         try:
             result = parse_file(str(rpy_file))
         except Exception:
+            logger.warning("Skipping %s: failed to parse", rpy_file, exc_info=True)
             continue
         rel_path = str(rpy_file.relative_to(scan_dir))
         for key in result:
@@ -50,4 +54,5 @@ def load_project(path: str) -> ProjectModel:
         model.dialogue.extend(result["dialogue"])
         model.conditions.extend(result["conditions"])
 
+    logger.info("Loaded %d .rpy files from %s", len(rpy_files), scan_dir)
     return model

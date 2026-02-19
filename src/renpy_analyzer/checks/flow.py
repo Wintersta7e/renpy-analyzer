@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
 from ..models import Finding, ProjectModel, Severity
+
+logger = logging.getLogger("renpy_analyzer.checks.flow")
 
 RE_JUMP_LINE = re.compile(r"^(\s+)jump\s+\w+\s*$")
 RE_RETURN_LINE = re.compile(r"^(\s+)return\s*$")
@@ -16,6 +19,7 @@ def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
     root = Path(project.root_dir)
 
+    logger.debug("Flow check: scanning %d files", len(project.files))
     for file_path_str in project.files:
         file_path = Path(file_path_str)
         if file_path.is_absolute():
