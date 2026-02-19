@@ -1,5 +1,12 @@
 """Allow running with: python -m renpy_analyzer"""
 
-from .app import main
+import sys
 
-main()
+if len(sys.argv) > 1:
+    from .cli import analyze
+
+    analyze()
+else:
+    from .app import main
+
+    main()

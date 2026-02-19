@@ -12,10 +12,10 @@ from tkinter import BooleanVar, StringVar, filedialog
 import customtkinter as ctk
 
 from . import __version__
+from .analyzer import run_analysis
 from .checks import ALL_CHECKS
 from .log import setup_logging
 from .models import Finding, Severity
-from .project import load_project
 from .report.pdf import generate_pdf
 
 logger = logging.getLogger("renpy_analyzer.app")
@@ -250,34 +250,17 @@ class RenpyAnalyzerApp(ctk.CTk):
 
     def _run_analysis(self, project_path: str, enabled_checks: list[str]) -> None:
         try:
-            self.after(0, self._update_progress, "Parsing project files...", 0.0)
-            project = load_project(project_path)
-
-            file_count = len(project.files)
-            self.after(0, self._update_progress, f"Parsed {file_count} .rpy files.", 0.1)
-
-            total_checks = len(enabled_checks)
-            findings: list[Finding] = []
-
-            for idx, check_name in enumerate(enabled_checks):
-                if self._cancel_event.is_set():
-                    logger.info("Analysis cancelled by user")
-                    self.after(0, self._analysis_cancelled)
-                    return
-                fraction = 0.1 + 0.85 * (idx / total_checks)
-                self.after(0, self._update_progress, f"Running check: {check_name}...", fraction)
-                check_fn = ALL_CHECKS[check_name]
-                findings.extend(check_fn(project))
+            findings = run_analysis(
+                project_path,
+                checks=enabled_checks,
+                on_progress=lambda msg, frac: self.after(0, self._update_progress, msg, frac),
+                cancel_check=self._cancel_event.is_set,
+            )
 
             if self._cancel_event.is_set():
-                logger.info("Analysis cancelled by user")
                 self.after(0, self._analysis_cancelled)
                 return
 
-            findings.sort(key=lambda f: f.severity)
-
-            logger.info("Analysis complete: %d findings from %d checks", len(findings), total_checks)
-            self.after(0, self._update_progress, "Analysis complete.", 1.0)
             self.after(100, self._analysis_complete, findings, project_path)
 
         except Exception as exc:
@@ -460,7 +443,7 @@ class RenpyAnalyzerApp(ctk.CTk):
 
 def main() -> None:
     """Entry point for the GUI application."""
-    setup_logging()
+    setup_logging(verbose=None)  # INFO level for GUI
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
     app = RenpyAnalyzerApp()

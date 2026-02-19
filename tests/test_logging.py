@@ -22,7 +22,7 @@ def test_setup_logging_creates_stderr_handler():
     logger = logging.getLogger("renpy_analyzer")
     assert len(logger.handlers) == 1
     assert isinstance(logger.handlers[0], logging.StreamHandler)
-    assert logger.level == logging.INFO
+    assert logger.level == logging.WARNING
     _clear_logger()
 
 
@@ -42,7 +42,7 @@ def test_setup_logging_with_log_file(tmp_path):
     assert len(logger.handlers) == 2
     assert any(isinstance(h, logging.FileHandler) for h in logger.handlers)
     # Write a message and verify it reaches the file
-    logger.info("test message")
+    logger.warning("test message")
     for h in logger.handlers:
         h.flush()
     content = Path(log_file).read_text(encoding="utf-8")

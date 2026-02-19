@@ -22,7 +22,10 @@ dev = [
 ]
 
 [project.scripts]
-renpy-analyzer = "renpy_analyzer.app:main"
+renpy-analyzer = "renpy_analyzer.cli:analyze"
+
+[project.gui-scripts]
+renpy-analyzer-gui = "renpy_analyzer.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

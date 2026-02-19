@@ -7,7 +7,7 @@ import sys
 
 
 def setup_logging(
-    verbose: bool = False,
+    verbose: bool | None = False,
     log_file: str | None = None,
 ) -> None:
     """Configure the ``renpy_analyzer`` logger hierarchy.
@@ -15,11 +15,18 @@ def setup_logging(
     Parameters
     ----------
     verbose:
-        If *True*, set the root logger level to DEBUG; otherwise INFO.
+        If *True*, set the root logger level to DEBUG;
+        if *False*, WARNING (quiet, for CLI);
+        use *None* for INFO (default, for GUI).
     log_file:
         If given, also write log output to this file path.
     """
-    level = logging.DEBUG if verbose else logging.INFO
+    if verbose is True:
+        level = logging.DEBUG
+    elif verbose is False:
+        level = logging.WARNING
+    else:
+        level = logging.INFO
     logger = logging.getLogger("renpy_analyzer")
     logger.setLevel(level)
 
