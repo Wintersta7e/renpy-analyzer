@@ -56,3 +56,38 @@ def test_explicit_bool_style(tmp_path):
     findings = check(model)
     style = [f for f in findings if f.severity == Severity.STYLE]
     assert len(style) == 1
+
+
+def test_empty_model_returns_empty(tmp_path):
+    """Logic check on empty model should return no findings."""
+    from renpy_analyzer.models import ProjectModel
+    model = ProjectModel(root_dir=str(tmp_path))
+    findings = check(model)
+    assert findings == []
+
+
+def test_explicit_bool_false_style(tmp_path):
+    """== False should also produce a STYLE finding."""
+    model = _project(tmp_path, """\
+        label start:
+            if MyFlag == False:
+                jump a
+    """)
+    findings = check(model)
+    style = [f for f in findings if f.severity == Severity.STYLE]
+    assert len(style) == 1
+    assert "False" in style[0].title
+
+
+def test_elif_precedence_bug(tmp_path):
+    """Precedence bug in elif should be caught too."""
+    model = _project(tmp_path, """\
+        label start:
+            if True:
+                jump a
+            elif VarX or VarY == True:
+                jump b
+    """)
+    findings = check(model)
+    critical = [f for f in findings if f.severity == Severity.CRITICAL]
+    assert len(critical) == 1

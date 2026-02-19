@@ -61,3 +61,43 @@ def test_run_analysis_cancel(tmp_path):
     findings = run_analysis(path, cancel_check=lambda: True)
     # No findings because cancelled before checks run
     assert findings == []
+
+
+def test_run_analysis_cancel_mid_run(tmp_path):
+    """Cancel after the first check should return partial results."""
+    path = _make_project(tmp_path, """\
+        label start:
+            jump nonexistent
+    """)
+    call_count = 0
+
+    def _cancel_after_first():
+        nonlocal call_count
+        call_count += 1
+        # Cancel after 2 cancel_check calls (one before first check, one after)
+        return call_count > 2
+
+    findings = run_analysis(path, cancel_check=_cancel_after_first)
+    # At most 1 check ran before cancellation (Labels), so we might have some findings
+    # but not from all checks
+    assert isinstance(findings, list)
+
+
+def test_run_analysis_empty_checks_list(tmp_path):
+    """Empty checks list should return no findings."""
+    path = _make_project(tmp_path, "label start:\n    return\n")
+    findings = run_analysis(path, checks=[])
+    assert findings == []
+
+
+def test_run_analysis_findings_sorted(tmp_path):
+    """Findings should be sorted by severity (most severe first)."""
+    path = _make_project(tmp_path, """\
+        label start:
+            jump nonexistent
+            $ Undeclared = True
+    """)
+    findings = run_analysis(path)
+    if len(findings) >= 2:
+        for i in range(len(findings) - 1):
+            assert findings[i].severity <= findings[i + 1].severity

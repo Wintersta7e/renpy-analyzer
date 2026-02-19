@@ -252,3 +252,80 @@ def test_multiword_scene_show(tmp_path):
     assert result["scenes"][0].transition == "dissolve"
     assert len(result["shows"]) == 1
     assert result["shows"][0].image_name == "eileen happy"
+
+
+# --- Edge case tests ---
+
+
+def test_parse_empty_file(tmp_path):
+    """Parsing an empty .rpy file should return empty lists, not crash."""
+    path = tmp_path / "empty.rpy"
+    path.write_text("", encoding="utf-8")
+    result = parse_file(str(path))
+    assert result["labels"] == []
+    assert result["jumps"] == []
+    assert result["variables"] == []
+    assert result["menus"] == []
+    assert result["scenes"] == []
+    assert result["characters"] == []
+    assert result["dialogue"] == []
+
+
+def test_parse_comment_only_file(tmp_path):
+    """A file with only comments should produce empty results."""
+    path = _write_rpy(tmp_path, """\
+        # This is just a comment
+        # Another comment line
+    """)
+    result = parse_file(path)
+    assert result["labels"] == []
+    assert result["jumps"] == []
+    assert result["variables"] == []
+
+
+def test_parse_non_utf8_file(tmp_path):
+    """Parser should handle non-UTF8 bytes without crashing (errors='replace')."""
+    path = tmp_path / "binary.rpy"
+    # Write some valid text followed by invalid UTF-8 bytes
+    path.write_bytes(b"label start:\n    jump ending\n\xff\xfe\n")
+    result = parse_file(str(path))
+    assert len(result["labels"]) == 1
+    assert result["labels"][0].name == "start"
+    assert len(result["jumps"]) == 1
+
+
+def test_parse_menu_at_end_of_file(tmp_path):
+    """Menu that is not terminated by a dedent (file ends mid-menu) should still be captured."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            menu:
+                "Choice A":
+                    mc "Picked A"
+                "Choice B":
+                    mc "Picked B"
+    """)
+    result = parse_file(path)
+    assert len(result["menus"]) == 1
+    assert len(result["menus"][0].choices) == 2
+
+
+def test_parse_label_at_column_zero(tmp_path):
+    """Labels at column 0 (no indentation) should be parsed."""
+    path = tmp_path / "test.rpy"
+    path.write_text("label start:\n    jump ending\nlabel ending:\n    return\n", encoding="utf-8")
+    result = parse_file(str(path))
+    names = [lbl.name for lbl in result["labels"]]
+    assert "start" in names
+    assert "ending" in names
+
+
+def test_parse_call_expression(tmp_path):
+    """call expression should produce a DynamicJump with the expression text."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            call expression "label_" + str(num)
+    """)
+    result = parse_file(path)
+    assert len(result["dynamic_jumps"]) == 1
+    assert result["dynamic_jumps"][0].expression == '"label_" + str(num)'
+    assert len(result["calls"]) == 0

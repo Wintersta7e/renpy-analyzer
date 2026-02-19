@@ -89,3 +89,12 @@ def test_project_loader_logs_warning_on_bad_file(tmp_path, caplog, monkeypatch):
     assert len(model.labels) >= 1
     # Bad file should produce a warning
     assert any("bad.rpy" in r.message for r in caplog.records)
+
+
+def test_setup_logging_verbose_none_sets_info():
+    """verbose=None should set INFO level (GUI default)."""
+    _clear_logger()
+    setup_logging(verbose=None)
+    logger = logging.getLogger("renpy_analyzer")
+    assert logger.level == logging.INFO
+    _clear_logger()

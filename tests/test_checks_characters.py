@@ -50,3 +50,41 @@ def test_all_used_no_findings(tmp_path):
     """)
     findings = check(model)
     assert len(findings) == 0
+
+
+def test_empty_model_returns_empty(tmp_path):
+    """Characters check on empty model should return no findings."""
+    from renpy_analyzer.models import ProjectModel
+    model = ProjectModel(root_dir=str(tmp_path))
+    findings = check(model)
+    assert findings == []
+
+
+def test_multiple_uses_of_undefined_speaker(tmp_path):
+    """Undefined speaker used multiple times should mention other locations."""
+    model = _project(tmp_path, """\
+        define mc = Character("Player", color="#fff")
+    """, """\
+        label start:
+            unknown "First line"
+            mc "Hello"
+            unknown "Second line"
+            unknown "Third line"
+    """)
+    findings = check(model)
+    undef = [f for f in findings if "Undefined" in f.title and "unknown" in f.title]
+    assert len(undef) == 1
+    assert "other" in undef[0].description.lower()
+
+
+def test_character_via_default(tmp_path):
+    """Character defined via 'default' should also suppress undefined speaker."""
+    model = _project(tmp_path, """\
+        default npc = Character("NPC", color="#aaa")
+    """, """\
+        label start:
+            npc "Hello there"
+    """)
+    findings = check(model)
+    undef = [f for f in findings if "Undefined" in f.title]
+    assert len(undef) == 0

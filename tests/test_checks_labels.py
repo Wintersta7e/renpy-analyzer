@@ -58,3 +58,34 @@ def test_jump_expression_flagged(tmp_path):
     expr = [f for f in findings if "expression" in f.title.lower() or "dynamic" in f.title.lower()]
     assert len(expr) == 1
     assert expr[0].severity.name == "MEDIUM"
+
+
+def test_empty_model_returns_empty(tmp_path):
+    """Labels check on empty model should return no findings."""
+    from renpy_analyzer.models import ProjectModel
+    model = ProjectModel(root_dir=str(tmp_path))
+    findings = check(model)
+    assert findings == []
+
+
+def test_missing_call_target(tmp_path):
+    """call to nonexistent label should produce CRITICAL finding."""
+    model = _project(tmp_path, """\
+        label start:
+            call nonexistent
+    """)
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity.name == "CRITICAL"
+    assert "nonexistent" in findings[0].title
+
+
+def test_cross_file_jump_valid(tmp_path):
+    """A jump to a label defined in another file should not produce a finding."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "file1.rpy").write_text("label start:\n    jump helper\n", encoding="utf-8")
+    (game / "file2.rpy").write_text("label helper:\n    return\n", encoding="utf-8")
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    assert len(findings) == 0

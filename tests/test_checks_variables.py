@@ -132,3 +132,21 @@ def test_builtin_shadowing_detected(tmp_path):
     shadow = [f for f in findings if "shadow" in f.title.lower() or "builtin" in f.title.lower()]
     assert len(shadow) == 2
     assert shadow[0].severity.name == "HIGH"
+
+
+def test_empty_model_returns_empty(tmp_path):
+    """Variables check on empty model should return no findings."""
+    from renpy_analyzer.models import ProjectModel
+    model = ProjectModel(root_dir=str(tmp_path))
+    findings = check(model)
+    assert findings == []
+
+
+def test_default_persistent_not_flagged(tmp_path):
+    """default persistent.X is correct usage and should NOT be flagged."""
+    model = _project(tmp_path, """\
+        default persistent.ending_seen = False
+    """)
+    findings = check(model)
+    persist = [f for f in findings if "persistent" in f.title.lower()]
+    assert len(persist) == 0

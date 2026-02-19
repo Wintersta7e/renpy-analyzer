@@ -70,3 +70,27 @@ def test_no_false_positive_on_menu(tmp_path):
     findings = check(model)
     unreach = [f for f in findings if "Unreachable" in f.title]
     assert len(unreach) == 0
+
+
+def test_empty_model_returns_empty(tmp_path):
+    """Flow check on empty model should return no findings."""
+    from renpy_analyzer.models import ProjectModel
+    model = ProjectModel(root_dir=str(tmp_path))
+    findings = check(model)
+    assert findings == []
+
+
+def test_comment_between_jump_and_unreachable(tmp_path):
+    """Comments between jump and unreachable code should not prevent detection."""
+    model = _project(tmp_path, """\
+        label start:
+            "Hello"
+            jump ending
+            # This is a comment
+            "Unreachable line"
+        label ending:
+            return
+    """)
+    findings = check(model)
+    unreach = [f for f in findings if "Unreachable" in f.title]
+    assert len(unreach) == 1
