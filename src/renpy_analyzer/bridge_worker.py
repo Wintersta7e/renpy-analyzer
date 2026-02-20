@@ -36,7 +36,7 @@ RE_VOICE = re.compile(r'^\s*voice\s+"([^"]+)"', re.IGNORECASE)
 RE_STOP = re.compile(r"^\s*stop\s+(music|sound|voice|audio)", re.IGNORECASE)
 
 RE_CHARACTER = re.compile(
-    r"""Character\(\s*["']([^"']+)["']""", re.IGNORECASE
+    r"""Character\(\s*(?:_\(\s*)?["']([^"']+)["']""", re.IGNORECASE
 )
 
 
@@ -49,6 +49,10 @@ def init_sdk(sdk_path, game_dir):
 
     import renpy  # noqa: E402
 
+    # renpy submodules (config, game, parser, etc.) are NOT loaded by
+    # a bare "import renpy".  The SDK's import_all() loads them all.
+    renpy.import_all()
+
     renpy.config.basedir = game_dir
     renpy.config.gamedir = game_dir
     renpy.config.renpy_base = sdk_path
@@ -60,9 +64,6 @@ def init_sdk(sdk_path, game_dir):
         all_pyexpr = []
 
     renpy.game.script = FakeScript()
-
-    # Import parser after config is set
-    import renpy.parser  # noqa: E402
 
     return renpy
 
@@ -78,12 +79,22 @@ def get_version(renpy):
 
 
 def flatten_ast(node):
-    """Recursively collect all AST nodes from a tree."""
-    nodes = [node]
-    children = getattr(node, "get_children", None)
-    if children is not None:
-        for child in children():
-            nodes.extend(flatten_ast(child))
+    """Recursively collect all AST nodes from a tree.
+
+    Ren'Py's get_children() uses a visitor pattern: it calls f(child)
+    for each child node rather than returning a list.
+    """
+    nodes = []
+
+    def _collect(n):
+        nodes.append(n)
+
+    get_children = getattr(node, "get_children", None)
+    if get_children is not None:
+        get_children(_collect)
+    else:
+        nodes.append(node)
+
     return nodes
 
 

@@ -132,6 +132,11 @@ def parse_files_with_sdk(
         len(files),
     )
 
+    # On Windows, prevent a console window from flashing up
+    kwargs = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
     try:
         proc = subprocess.run(
             [python_bin, worker_script],
@@ -139,6 +144,7 @@ def parse_files_with_sdk(
             capture_output=True,
             text=True,
             timeout=timeout,
+            **kwargs,
         )
     except subprocess.TimeoutExpired:
         raise RuntimeError(

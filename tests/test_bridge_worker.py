@@ -274,6 +274,7 @@ class TestExtractFromNode:
 # ---------------------------------------------------------------------------
 
 def test_flatten_ast_single():
+    """Node without get_children should return just itself."""
     node = _mock_node("Label", name="test")
     del node.get_children  # no children method
     result = flatten_ast(node)
@@ -281,13 +282,21 @@ def test_flatten_ast_single():
 
 
 def test_flatten_ast_with_children():
+    """get_children uses visitor pattern: calls f(child) for each child."""
     child1 = _mock_node("Say", who="mc")
     del child1.get_children
     child2 = _mock_node("Jump", target="end")
     del child2.get_children
 
     parent = _mock_node("Label", name="start")
-    parent.get_children.return_value = [child1, child2]
+
+    # Simulate Ren'Py visitor pattern: get_children(f) calls f on self + children
+    def fake_get_children(f):
+        f(parent)
+        f(child1)
+        f(child2)
+
+    parent.get_children = fake_get_children
 
     result = flatten_ast(parent)
     assert len(result) == 3
