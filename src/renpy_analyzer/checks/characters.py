@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from ..models import Finding, ProjectModel, Severity
 
+# Built-in Ren'Py speaker names that don't need Character() definitions.
+# Defined in renpy/common/00definitions.rpy and renpy/common/00library.rpy.
+BUILTIN_SPEAKERS = frozenset({"centered", "vcentered", "name_only", "adv"})
+
 
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
@@ -24,7 +28,8 @@ def check(project: ProjectModel) -> list[Finding]:
         speaker_locations.setdefault(dl.speaker, []).append(dl)
 
     for speaker, usages in speaker_locations.items():
-        if speaker not in defined_chars and speaker not in non_char_defines:
+        if (speaker not in defined_chars and speaker not in non_char_defines
+                and speaker not in BUILTIN_SPEAKERS):
             first = usages[0]
             if len(usages) > 1:
                 count_note = (

@@ -88,3 +88,15 @@ def test_character_via_default(tmp_path):
     findings = check(model)
     undef = [f for f in findings if "Undefined" in f.title]
     assert len(undef) == 0
+
+
+def test_builtin_speakers_not_flagged(tmp_path):
+    """Built-in speakers (centered, vcentered) should not be flagged as undefined."""
+    model = _project(tmp_path, "", """\
+        label start:
+            centered "Chapter 1"
+            vcentered "Centered text"
+    """)
+    findings = check(model)
+    undef = [f for f in findings if "Undefined" in f.title]
+    assert len(undef) == 0

@@ -34,12 +34,12 @@ RE_DEFINE = re.compile(r"^\s*define\s+([\w.]+)\s*=\s*(.+)")
 RE_ASSIGN = re.compile(r"^\s*\$\s+(\w+)\s*=\s*(.+)")
 RE_AUGMENT = re.compile(r"^\s*\$\s+(\w+)\s*[+\-*/]=\s*(.+)")
 RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
-RE_SCENE = re.compile(r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b)[\w]+)*)(?:\s+with\s+(\w+))?")
-RE_SHOW = re.compile(r"^\s+show\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b)[\w]+)*)")
+RE_SCENE = re.compile(r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?")
+RE_SHOW = re.compile(r"^\s+show\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
 RE_MUSIC_PLAY = re.compile(r'^\s+play\s+music\s+"([^"]+)"')
-RE_MUSIC_STOP = re.compile(r"^\s+stop\s+music")
+RE_MUSIC_STOP = re.compile(r"^\s+stop\s+(music|sound|voice|audio|movie)\b")
 RE_SOUND_PLAY = re.compile(r'^\s+play\s+(sound|voice|audio)\s+"([^"]+)"')
 RE_MUSIC_QUEUE = re.compile(r'^\s+queue\s+(music|sound|voice|audio)\s+"([^"]+)"')
 RE_VOICE_STMT = re.compile(r'^\s+voice\s+"([^"]+)"')
@@ -55,9 +55,10 @@ RENPY_KEYWORDS = frozenset({
     "python", "label", "menu", "if", "elif", "else", "while", "for",
     "pass", "image", "transform", "screen", "style", "translate",
     "pause", "nvl", "window", "camera", "at", "extend", "narrator",
+    "rpy",
 })
 
-BUILTIN_IMAGES = frozenset({"black", "white"})
+BUILTIN_IMAGES = frozenset({"black", "text", "vtext"})
 
 
 def _get_indent(line: str) -> int:
@@ -273,7 +274,7 @@ def parse_file(filepath: str) -> dict:
             ))
             continue
 
-        # --- Music stop ---
+        # --- Stop music/sound/voice/audio/movie ---
         m = RE_MUSIC_STOP.match(line)
         if m:
             music.append(MusicRef(

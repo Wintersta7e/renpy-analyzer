@@ -11,7 +11,7 @@ from ..models import Finding, ProjectModel, Severity
 logger = logging.getLogger("renpy_analyzer.checks.flow")
 
 RE_JUMP_LINE = re.compile(r"^(\s+)jump\s+\w+\s*$")
-RE_RETURN_LINE = re.compile(r"^(\s+)return\s*$")
+RE_RETURN_LINE = re.compile(r"^(\s+)return\b")
 RE_LABEL_LINE = re.compile(r"^\s*label\s+\w+\s*:")
 
 

@@ -329,3 +329,63 @@ def test_parse_call_expression(tmp_path):
     assert len(result["dynamic_jumps"]) == 1
     assert result["dynamic_jumps"][0].expression == '"label_" + str(num)'
     assert len(result["calls"]) == 0
+
+
+def test_stop_sound_voice_audio_parsed(tmp_path):
+    """stop sound/voice/audio/movie should all be parsed, not just stop music."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            stop music
+            stop sound
+            stop voice
+            stop audio
+            stop movie
+    """)
+    result = parse_file(path)
+    stops = [m for m in result["music"] if m.action == "stop"]
+    assert len(stops) == 5
+
+
+def test_show_with_transform_keyword(tmp_path):
+    """'show eileen transform ease' should not capture 'transform ease' in image name."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            show eileen happy
+            show eileen transform ease
+    """)
+    result = parse_file(path)
+    names = [s.image_name for s in result["shows"]]
+    assert "eileen happy" in names
+    assert "eileen" in names
+    # "transform" should NOT be part of image name
+    assert all("transform" not in n for n in names)
+
+
+def test_scene_with_transform_keyword(tmp_path):
+    """'scene bg park transform ease' should not capture 'transform ease' in image name."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            scene bg park transform ease
+    """)
+    result = parse_file(path)
+    assert result["scenes"][0].image_name == "bg park"
+
+
+def test_rpy_keyword_not_dialogue(tmp_path):
+    """'rpy' should be in RENPY_KEYWORDS and not parsed as dialogue speaker."""
+    path = _write_rpy(tmp_path, """\
+        label start:
+            rpy monologue "some text"
+    """)
+    result = parse_file(path)
+    speakers = [d.speaker for d in result["dialogue"]]
+    assert "rpy" not in speakers
+
+
+def test_builtin_images():
+    """black, text, vtext are builtins; white is not."""
+    from renpy_analyzer.parser import BUILTIN_IMAGES
+    assert "black" in BUILTIN_IMAGES
+    assert "text" in BUILTIN_IMAGES
+    assert "vtext" in BUILTIN_IMAGES
+    assert "white" not in BUILTIN_IMAGES

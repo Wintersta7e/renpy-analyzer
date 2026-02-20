@@ -97,6 +97,18 @@ def test_audio_file_exists_no_finding(tmp_path):
     assert len(audio) == 0
 
 
+def test_scene_white_not_builtin(tmp_path):
+    """'scene white' should be flagged — white is NOT a Ren'Py builtin image."""
+    model = _project_with_images(tmp_path, """\
+        label start:
+            scene white with fade
+    """)
+    findings = check(model)
+    undef = [f for f in findings if "Undefined" in f.title]
+    assert len(undef) == 1
+    assert "white" in undef[0].title
+
+
 def test_audio_case_mismatch(tmp_path):
     """Audio reference with wrong case should produce a case mismatch finding."""
     game = tmp_path / "game"

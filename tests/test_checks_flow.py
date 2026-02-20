@@ -94,3 +94,29 @@ def test_comment_between_jump_and_unreachable(tmp_path):
     findings = check(model)
     unreach = [f for f in findings if "Unreachable" in f.title]
     assert len(unreach) == 1
+
+
+def test_unreachable_after_return_expression(tmp_path):
+    """'return True' and 'return expr' should also trigger unreachable detection."""
+    model = _project(tmp_path, """\
+        label helper:
+            "Doing work"
+            return True
+            "This is unreachable"
+    """)
+    findings = check(model)
+    unreach = [f for f in findings if "Unreachable" in f.title]
+    assert len(unreach) == 1
+
+
+def test_return_value_detected(tmp_path):
+    """return with a value (return _return) should be detected as a terminator."""
+    model = _project(tmp_path, """\
+        label compute:
+            $ result = 42
+            return result
+            $ result = 0
+    """)
+    findings = check(model)
+    unreach = [f for f in findings if "Unreachable" in f.title]
+    assert len(unreach) == 1
