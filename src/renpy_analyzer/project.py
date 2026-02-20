@@ -12,8 +12,19 @@ logger = logging.getLogger("renpy_analyzer.project")
 
 # All model list keys — must match ProjectModel fields
 _MODEL_KEYS = [
-    "labels", "jumps", "calls", "dynamic_jumps", "variables", "menus",
-    "scenes", "shows", "images", "music", "characters", "dialogue", "conditions",
+    "labels",
+    "jumps",
+    "calls",
+    "dynamic_jumps",
+    "variables",
+    "menus",
+    "scenes",
+    "shows",
+    "images",
+    "music",
+    "characters",
+    "dialogue",
+    "conditions",
 ]
 
 

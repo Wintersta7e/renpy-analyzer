@@ -28,6 +28,7 @@ from ..models import Finding, Severity
 # Hex helper
 # ---------------------------------------------------------------------------
 
+
 def _hex(h: str) -> tuple[float, float, float]:
     """Convert '#RRGGBB' to an (r, g, b) float tuple for PyMuPDF."""
     h = h.lstrip("#")
@@ -39,38 +40,38 @@ def _hex(h: str) -> tuple[float, float, float]:
 # ---------------------------------------------------------------------------
 
 _C = {
-    "page_bg":       _hex("#0D1B2A"),
-    "card_bg":       _hex("#1B2838"),
-    "card_border":   _hex("#2A3A4E"),
-    "section_bg":    _hex("#152232"),
-    "loc_bg":        _hex("#0F1D2D"),
-    "table_hdr_bg":  _hex("#1B2838"),
-    "table_alt":     _hex("#132030"),
-    "text":          _hex("#E0E6ED"),
-    "text2":         _hex("#8899AA"),
-    "text3":         _hex("#5A6A7A"),
-    "accent":        _hex("#2A3A4E"),
-    "white":         (1.0, 1.0, 1.0),
-    "banner_top":    _hex("#0D1B2A"),
-    "banner_bot":    _hex("#091520"),
-    "suggest_bg":    _hex("#122218"),
-    "suggest_text":  _hex("#5ABF7B"),
+    "page_bg": _hex("#0D1B2A"),
+    "card_bg": _hex("#1B2838"),
+    "card_border": _hex("#2A3A4E"),
+    "section_bg": _hex("#152232"),
+    "loc_bg": _hex("#0F1D2D"),
+    "table_hdr_bg": _hex("#1B2838"),
+    "table_alt": _hex("#132030"),
+    "text": _hex("#E0E6ED"),
+    "text2": _hex("#8899AA"),
+    "text3": _hex("#5A6A7A"),
+    "accent": _hex("#2A3A4E"),
+    "white": (1.0, 1.0, 1.0),
+    "banner_top": _hex("#0D1B2A"),
+    "banner_bot": _hex("#091520"),
+    "suggest_bg": _hex("#122218"),
+    "suggest_text": _hex("#5ABF7B"),
 }
 
 _SEV_BG = {
     Severity.CRITICAL: _hex("#FF4757"),
-    Severity.HIGH:     _hex("#FF8C42"),
-    Severity.MEDIUM:   _hex("#FFCB47"),
-    Severity.LOW:      _hex("#2ED573"),
-    Severity.STYLE:    _hex("#7C8A96"),
+    Severity.HIGH: _hex("#FF8C42"),
+    Severity.MEDIUM: _hex("#FFCB47"),
+    Severity.LOW: _hex("#2ED573"),
+    Severity.STYLE: _hex("#7C8A96"),
 }
 
 _SEV_FG = {
     Severity.CRITICAL: _C["white"],
-    Severity.HIGH:     _C["white"],
-    Severity.MEDIUM:   _C["page_bg"],
-    Severity.LOW:      _C["white"],
-    Severity.STYLE:    _C["white"],
+    Severity.HIGH: _C["white"],
+    Severity.MEDIUM: _C["page_bg"],
+    Severity.LOW: _C["white"],
+    Severity.STYLE: _C["white"],
 }
 
 _CATEGORY_ORDER = ["Labels", "Variables", "Logic", "Menus", "Assets", "Characters", "Flow"]
@@ -89,17 +90,18 @@ _CHECK_TO_CATEGORY = {
 # Layout constants (A4 = 595 x 842 pt)
 # ---------------------------------------------------------------------------
 
-_PAGE_W, _PAGE_H = 595, 842
-_ML = 50          # margin left
-_MR = 50          # margin right
-_MT = 55          # margin top
-_MB = 50          # margin bottom
-_CW = _PAGE_W - _ML - _MR  # 495  content width
+_PAGE_W: float = 595
+_PAGE_H: float = 842
+_ML: float = 50  # margin left
+_MR: float = 50  # margin right
+_MT: float = 55  # margin top
+_MB: float = 50  # margin bottom
+_CW: float = _PAGE_W - _ML - _MR  # 495  content width
 
 # Fonts (Base-14)
-_F = "helv"        # Helvetica
-_FB = "hebo"       # Helvetica-Bold
-_FM = "cour"       # Courier
+_F = "helv"  # Helvetica
+_FB = "hebo"  # Helvetica-Bold
+_FM = "cour"  # Courier
 
 # Font objects for measuring (lazy-initialized)
 _FONT_CACHE: dict[str, fitz.Font] = {}
@@ -113,7 +115,7 @@ def _get_font(name: str) -> fitz.Font:
 
 def _tw(text: str, font: str, size: float) -> float:
     """Text width in points."""
-    return _get_font(font).text_length(text, fontsize=size)
+    return float(_get_font(font).text_length(text, fontsize=size))
 
 
 def _wrap(text: str, max_w: float, font: str, size: float) -> list[str]:
@@ -145,6 +147,7 @@ _MAX_LOCS_COMPACT = 10
 # ---------------------------------------------------------------------------
 # Grouped finding model
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _GroupedFinding:
@@ -200,6 +203,7 @@ def _group_findings(
 # Measure helpers — compute exact heights without drawing
 # ---------------------------------------------------------------------------
 
+
 def _loc_block_h(n: int, two_col: bool = True, overflow: bool = False) -> float:
     """Height of a location block with *n* entries."""
     if n == 0:
@@ -221,18 +225,18 @@ def _measure_full_card(g: _GroupedFinding) -> float:
     overflow = len(g.locations) - capped
     loc_h = _loc_block_h(capped, overflow=overflow > 0)
 
-    h = 16                                # top pad + badge line
-    h += len(title_lines) * 14            # title
-    h += 6                                # gap
-    h += len(desc_lines) * 13             # description
+    h: float = 16  # top pad + badge line
+    h += len(title_lines) * 14  # title
+    h += 6  # gap
+    h += len(desc_lines) * 13  # description
     if sugg_lines:
-        h += 10                           # gap + "Suggestion:" label
-        h += 12                           # label line
-        h += len(sugg_lines) * 12         # suggestion body
-    h += 10                               # gap before locations
-    h += 12                               # "Locations:" label
-    h += loc_h                            # location rows
-    h += 10                               # bottom pad
+        h += 10  # gap + "Suggestion:" label
+        h += 12  # label line
+        h += len(sugg_lines) * 12  # suggestion body
+    h += 10  # gap before locations
+    h += 12  # "Locations:" label
+    h += loc_h  # location rows
+    h += 10  # bottom pad
     return max(h, 60)
 
 
@@ -247,18 +251,18 @@ def _measure_compact_card(g: _GroupedFinding) -> float:
     overflow = len(g.locations) - capped
     loc_h = _loc_block_h(capped, overflow=overflow > 0)
 
-    h = 14                                # top pad + badge
-    h += len(title_lines) * 13            # title
-    h += 4                                # gap
-    h += len(desc_lines) * 12             # full description
+    h: float = 14  # top pad + badge
+    h += len(title_lines) * 13  # title
+    h += 4  # gap
+    h += len(desc_lines) * 12  # full description
     if sugg_lines:
-        h += 8                            # gap + "Suggestion:" label
-        h += 12                           # label line
-        h += len(sugg_lines) * 11         # suggestion body
-    h += 8                                # gap before locations
-    h += 12                               # "Locations:" label
-    h += loc_h                            # locations
-    h += 8                                # bottom pad
+        h += 8  # gap + "Suggestion:" label
+        h += 12  # label line
+        h += len(sugg_lines) * 11  # suggestion body
+    h += 8  # gap before locations
+    h += 12  # "Locations:" label
+    h += loc_h  # locations
+    h += 8  # bottom pad
     return max(h, 44)
 
 
@@ -270,6 +274,7 @@ def _measure_table_row(g: _GroupedFinding) -> float:
 # ---------------------------------------------------------------------------
 # PDF builder
 # ---------------------------------------------------------------------------
+
 
 class _PDFBuilder:
     """Manages page creation, cursor tracking, and content rendering."""
@@ -297,7 +302,8 @@ class _PDFBuilder:
         # Midnight background
         self.page.draw_rect(
             fitz.Rect(0, 0, _PAGE_W, _PAGE_H),
-            fill=_C["page_bg"], color=None,
+            fill=_C["page_bg"],
+            color=None,
         )
         return self.page
 
@@ -318,51 +324,62 @@ class _PDFBuilder:
         tw = _tw(text, _F, 8)
         self.page.insert_text(
             fitz.Point((_PAGE_W - tw) / 2, _PAGE_H - 25),
-            text, fontsize=8, fontname=_F, color=_C["text3"],
+            text,
+            fontsize=8,
+            fontname=_F,
+            color=_C["text3"],
         )
 
     # -- primitive drawing helpers ------------------------------------------
 
-    def _text(self, x: float, text: str, font: str = _F,
-              size: float = 10, color: tuple = None) -> float:
+    def _text(self, x: float, text: str, font: str = _F, size: float = 10, color: tuple | None = None) -> float:
         """Insert text at (x, self.y). Returns text width."""
         if color is None:
             color = _C["text"]
         self.page.insert_text(
-            fitz.Point(x, self.y), text,
-            fontsize=size, fontname=font, color=color,
+            fitz.Point(x, self.y),
+            text,
+            fontsize=size,
+            fontname=font,
+            color=color,
         )
         return _tw(text, font, size)
 
-    def _rect(self, rect: fitz.Rect, fill=None, border=None,
-              width: float = 0.5, radius: float | None = None) -> None:
+    def _rect(self, rect: fitz.Rect, fill=None, border=None, width: float = 0.5, radius: float | None = None) -> None:
         kw: dict = {"fill": fill, "color": border, "width": width}
         if radius is not None:
             kw["radius"] = radius
         self.page.draw_rect(rect, **kw)
 
-    def _badge(self, x: float, y: float, text: str,
-               bg: tuple, fg: tuple, size: float = 8,
-               hpad: float = 6, vpad: float = 3) -> float:
+    def _badge(
+        self, x: float, y: float, text: str, bg: tuple, fg: tuple, size: float = 8, hpad: float = 6, vpad: float = 3
+    ) -> float:
         """Draw a rounded badge. Returns badge width."""
         tw = _tw(text, _FB, size)
         bw = tw + hpad * 2
         bh = size + vpad * 2
         self._rect(
             fitz.Rect(x, y - bh + vpad, x + bw, y + vpad),
-            fill=bg, border=None, radius=0.25,
+            fill=bg,
+            border=None,
+            radius=0.25,
         )
         self.page.insert_text(
-            fitz.Point(x + hpad, y), text,
-            fontsize=size, fontname=_FB, color=fg,
+            fitz.Point(x + hpad, y),
+            text,
+            fontsize=size,
+            fontname=_FB,
+            color=fg,
         )
         return bw
 
     def _rule(self) -> None:
         """Draw a horizontal divider at self.y."""
         self.page.draw_line(
-            fitz.Point(_ML, self.y), fitz.Point(_PAGE_W - _MR, self.y),
-            color=_C["accent"], width=0.6,
+            fitz.Point(_ML, self.y),
+            fitz.Point(_PAGE_W - _MR, self.y),
+            color=_C["accent"],
+            width=0.6,
         )
 
     # -- location rendering -------------------------------------------------
@@ -370,8 +387,7 @@ class _PDFBuilder:
     def _fmt_loc(self, f: str, ln: int) -> str:
         return f"{f}:{ln}"
 
-    def _draw_locs_2col(self, locs: list[tuple[str, int]],
-                        left_x: float, max_n: int | None = None) -> None:
+    def _draw_locs_2col(self, locs: list[tuple[str, int]], left_x: float, max_n: int | None = None) -> None:
         """Draw locations in 2-column layout starting at self.y."""
         show = locs if max_n is None else locs[:max_n]
         overflow = len(locs) - len(show)
@@ -384,8 +400,11 @@ class _PDFBuilder:
                 s = s[:-4] + "..."
             x = left_x if i % 2 == 0 else col2_x
             self.page.insert_text(
-                fitz.Point(x, self.y), s,
-                fontsize=_LOC_FS, fontname=_FM, color=_C["text2"],
+                fitz.Point(x, self.y),
+                s,
+                fontsize=_LOC_FS,
+                fontname=_FM,
+                color=_C["text2"],
             )
             if i % 2 == 1 or i == len(show) - 1:
                 self.y += _LOC_LH
@@ -393,13 +412,15 @@ class _PDFBuilder:
         if overflow > 0:
             more = f"... and {overflow} more location{'s' if overflow != 1 else ''}"
             self.page.insert_text(
-                fitz.Point(left_x, self.y), more,
-                fontsize=_LOC_FS, fontname=_F, color=_C["text3"],
+                fitz.Point(left_x, self.y),
+                more,
+                fontsize=_LOC_FS,
+                fontname=_F,
+                color=_C["text3"],
             )
             self.y += _LOC_LH
 
-    def _draw_locs_inline(self, locs: list[tuple[str, int]],
-                          left_x: float, max_n: int = 3) -> None:
+    def _draw_locs_inline(self, locs: list[tuple[str, int]], left_x: float, max_n: int = 3) -> None:
         """Draw locations inline on a single line (for table rows)."""
         show = locs[:max_n]
         overflow = len(locs) - len(show)
@@ -411,8 +432,11 @@ class _PDFBuilder:
         while _tw(text, _FM, 7) > max_w and len(text) > 30:
             text = text[:-4] + "..."
         self.page.insert_text(
-            fitz.Point(left_x, self.y), text,
-            fontsize=7, fontname=_FM, color=_C["text3"],
+            fitz.Point(left_x, self.y),
+            text,
+            fontsize=7,
+            fontname=_FM,
+            color=_C["text3"],
         )
 
     # ======================================================================
@@ -428,12 +452,14 @@ class _PDFBuilder:
         banner_h = 110
         self._rect(
             fitz.Rect(0, 0, _PAGE_W, banner_h),
-            fill=_C["banner_bot"], border=None,
+            fill=_C["banner_bot"],
+            border=None,
         )
         # Lighter top portion for gradient effect
         self._rect(
             fitz.Rect(0, 0, _PAGE_W, banner_h * 0.6),
-            fill=_C["banner_top"], border=None,
+            fill=_C["banner_top"],
+            border=None,
         )
 
         # Game name  (baseline at y=50, ascent ~16pt for size 22)
@@ -488,9 +514,7 @@ class _PDFBuilder:
         for sev in Severity:
             c = sev_counts.get(sev, 0)
             label = f"{sev.name}  {c}"
-            bw = self._badge(x, self.y, label,
-                             bg=_SEV_BG[sev], fg=_SEV_FG[sev],
-                             size=10, hpad=10, vpad=5)
+            bw = self._badge(x, self.y, label, bg=_SEV_BG[sev], fg=_SEV_FG[sev], size=10, hpad=10, vpad=5)
             x += bw + 12
         self.y += 30
 
@@ -512,15 +536,15 @@ class _PDFBuilder:
         hdr_top = self.y - 2
         self._rect(
             fitz.Rect(_ML, hdr_top, _PAGE_W - _MR, hdr_top + row_h),
-            fill=_C["table_hdr_bg"], border=None,
+            fill=_C["table_hdr_bg"],
+            border=None,
         )
         hdr_baseline = hdr_top + 13  # 13pt down inside 18pt row
         self.y = hdr_baseline
         self._text(_ML + 5, "Category", font=_FB, size=9, color=_C["white"])
         for i, sev in enumerate(Severity):
             self.y = hdr_baseline
-            self._text(_ML + label_col_w + i * sev_col_w + 5, sev.name,
-                       font=_FB, size=8, color=_C["white"])
+            self._text(_ML + label_col_w + i * sev_col_w + 5, sev.name, font=_FB, size=8, color=_C["white"])
         self.y = hdr_baseline
         self._text(total_col_x + 5, "TOTAL", font=_FB, size=8, color=_C["white"])
         self.y = hdr_top + row_h
@@ -545,8 +569,7 @@ class _PDFBuilder:
                 c = counts.get(sev, 0)
                 if c > 0:
                     self.y = baseline
-                    self._text(_ML + label_col_w + i * sev_col_w + 5, str(c),
-                               font=_F, size=9, color=_SEV_BG[sev])
+                    self._text(_ML + label_col_w + i * sev_col_w + 5, str(c), font=_F, size=9, color=_SEV_BG[sev])
             self.y = baseline
             self._text(total_col_x + 5, str(row_total), font=_FB, size=9, color=_C["white"])
             self.y = row_top + row_h
@@ -554,7 +577,8 @@ class _PDFBuilder:
             self.page.draw_line(
                 fitz.Point(_ML, self.y),
                 fitz.Point(_PAGE_W - _MR, self.y),
-                color=_C["accent"], width=0.3,
+                color=_C["accent"],
+                width=0.3,
             )
 
         # Unique count note
@@ -575,8 +599,10 @@ class _PDFBuilder:
         self._text(_ML, "Table of Contents", font=_FB, size=20, color=_C["white"])
         self.y += 8
         self.page.draw_line(
-            fitz.Point(_ML, self.y), fitz.Point(_PAGE_W - _MR, self.y),
-            color=_C["accent"], width=1.2,
+            fitz.Point(_ML, self.y),
+            fitz.Point(_PAGE_W - _MR, self.y),
+            color=_C["accent"],
+            width=1.2,
         )
         self.y += 25
 
@@ -593,8 +619,9 @@ class _PDFBuilder:
 
     # -- Section header -----------------------------------------------------
 
-    def draw_section_header(self, title: str, finding_count: int,
-                            group_count: int, sev_color: tuple | None = None) -> None:
+    def draw_section_header(
+        self, title: str, finding_count: int, group_count: int, sev_color: tuple | None = None
+    ) -> None:
         self.ensure_space(60)
         self.register_section(title, level=1)
 
@@ -602,13 +629,16 @@ class _PDFBuilder:
         # Section background
         self._rect(
             fitz.Rect(_ML, self.y - 6, _PAGE_W - _MR, self.y - 6 + bar_h),
-            fill=_C["section_bg"], border=None, radius=0.02,
+            fill=_C["section_bg"],
+            border=None,
+            radius=0.02,
         )
         # Left accent bar (severity-tinted or white)
         accent = sev_color if sev_color else _C["white"]
         self._rect(
             fitz.Rect(_ML, self.y - 6, _ML + 4, self.y - 6 + bar_h),
-            fill=accent, border=None,
+            fill=accent,
+            border=None,
         )
 
         # Title
@@ -622,8 +652,12 @@ class _PDFBuilder:
             count_text = f"{finding_count} findings in {group_count} unique issues"
         title_w = _tw(title, _FB, 16)
         self._badge(
-            _ML + 14 + title_w + 12, self.y, count_text,
-            bg=_C["accent"], fg=_C["text2"], size=8,
+            _ML + 14 + title_w + 12,
+            self.y,
+            count_text,
+            bg=_C["accent"],
+            fg=_C["text2"],
+            size=8,
         )
         self.y += bar_h - 2
 
@@ -649,26 +683,35 @@ class _PDFBuilder:
         # ---- Draw card background (exact height known) ----
         self._rect(
             fitz.Rect(card_left, card_top, card_right, card_top + card_h),
-            fill=_C["card_bg"], border=_C["card_border"], width=0.4, radius=0.02,
+            fill=_C["card_bg"],
+            border=_C["card_border"],
+            width=0.4,
+            radius=0.02,
         )
         # Left accent
         self._rect(
             fitz.Rect(card_left, card_top, card_left + 4, card_top + card_h),
-            fill=sev_bg, border=None,
+            fill=sev_bg,
+            border=None,
         )
 
         inner_left = card_left + 14
         self.y = card_top + 16
 
         # Severity badge
-        bw = self._badge(inner_left, self.y, g.severity.name,
-                         bg=sev_bg, fg=sev_fg, size=7, hpad=5, vpad=2)
+        bw = self._badge(inner_left, self.y, g.severity.name, bg=sev_bg, fg=sev_fg, size=7, hpad=5, vpad=2)
         # Occurrence count
         if g.count > 1:
-            self._badge(inner_left + bw + 8, self.y,
-                        f"{g.count} occurrences",
-                        bg=_C["accent"], fg=_C["text2"],
-                        size=7, hpad=4, vpad=2)
+            self._badge(
+                inner_left + bw + 8,
+                self.y,
+                f"{g.count} occurrences",
+                bg=_C["accent"],
+                fg=_C["text2"],
+                size=7,
+                hpad=4,
+                vpad=2,
+            )
         self.y += 14
 
         # Title
@@ -685,19 +728,19 @@ class _PDFBuilder:
         # Suggestion
         if g.suggestion:
             self.y += 4
-            self._text(inner_left, "Suggestion:", font=_FB, size=8,
-                       color=_C["suggest_text"])
+            self._text(inner_left, "Suggestion:", font=_FB, size=8, color=_C["suggest_text"])
             self.y += 12
             sugg_lines = _wrap(g.suggestion, inner_w - 16, _F, 9)
             # Suggestion background
             sugg_h = len(sugg_lines) * 12 + 6
             self._rect(
                 fitz.Rect(inner_left, self.y - 10, card_right - 14, self.y - 10 + sugg_h),
-                fill=_C["suggest_bg"], border=None, radius=0.02,
+                fill=_C["suggest_bg"],
+                border=None,
+                radius=0.02,
             )
             for line in sugg_lines:
-                self._text(inner_left + 8, line, font=_F, size=9,
-                           color=_C["suggest_text"])
+                self._text(inner_left + 8, line, font=_F, size=9, color=_C["suggest_text"])
                 self.y += 12
 
         # Locations header
@@ -711,9 +754,10 @@ class _PDFBuilder:
         loc_h = _loc_block_h(capped, overflow=overflow > 0)
         if loc_h > 0:
             self._rect(
-                fitz.Rect(inner_left - 4, self.y - 9,
-                          card_right - 10, self.y - 9 + loc_h),
-                fill=_C["loc_bg"], border=None, radius=0.02,
+                fitz.Rect(inner_left - 4, self.y - 9, card_right - 10, self.y - 9 + loc_h),
+                fill=_C["loc_bg"],
+                border=None,
+                radius=0.02,
             )
         self._draw_locs_2col(g.locations, inner_left, max_n=_MAX_LOCS_FULL)
 
@@ -736,25 +780,27 @@ class _PDFBuilder:
         # Card background
         self._rect(
             fitz.Rect(card_left, card_top, card_right, card_top + card_h),
-            fill=_C["card_bg"], border=_C["card_border"], width=0.3, radius=0.02,
+            fill=_C["card_bg"],
+            border=_C["card_border"],
+            width=0.3,
+            radius=0.02,
         )
         # Thin left accent
         self._rect(
             fitz.Rect(card_left, card_top, card_left + 3, card_top + card_h),
-            fill=sev_bg, border=None,
+            fill=sev_bg,
+            border=None,
         )
 
         inner_left = card_left + 12
         self.y = card_top + 13
 
         # Badge + count
-        bw = self._badge(inner_left, self.y, g.severity.name,
-                         bg=sev_bg, fg=sev_fg, size=6.5, hpad=4, vpad=2)
+        bw = self._badge(inner_left, self.y, g.severity.name, bg=sev_bg, fg=sev_fg, size=6.5, hpad=4, vpad=2)
         if g.count > 1:
-            self._badge(inner_left + bw + 6, self.y,
-                        f"x{g.count}",
-                        bg=_C["accent"], fg=_C["text2"],
-                        size=6.5, hpad=3, vpad=2)
+            self._badge(
+                inner_left + bw + 6, self.y, f"x{g.count}", bg=_C["accent"], fg=_C["text2"], size=6.5, hpad=3, vpad=2
+            )
         self.y += 12
 
         # Title
@@ -771,18 +817,18 @@ class _PDFBuilder:
         # Suggestion
         if g.suggestion:
             self.y += 3
-            self._text(inner_left, "Suggestion:", font=_FB, size=8,
-                       color=_C["suggest_text"])
+            self._text(inner_left, "Suggestion:", font=_FB, size=8, color=_C["suggest_text"])
             self.y += 12
             sugg_lines = _wrap(g.suggestion, inner_w - 16, _F, 8.5)
             sugg_h = len(sugg_lines) * 11 + 6
             self._rect(
                 fitz.Rect(inner_left, self.y - 10, card_right - 12, self.y - 10 + sugg_h),
-                fill=_C["suggest_bg"], border=None, radius=0.02,
+                fill=_C["suggest_bg"],
+                border=None,
+                radius=0.02,
             )
             for line in sugg_lines:
-                self._text(inner_left + 8, line, font=_F, size=8.5,
-                           color=_C["suggest_text"])
+                self._text(inner_left + 8, line, font=_F, size=8.5, color=_C["suggest_text"])
                 self.y += 11
 
         # Locations header
@@ -796,9 +842,10 @@ class _PDFBuilder:
         loc_h = _loc_block_h(capped, overflow=overflow > 0)
         if loc_h > 0:
             self._rect(
-                fitz.Rect(inner_left - 4, self.y - 9,
-                          card_right - 10, self.y - 9 + loc_h),
-                fill=_C["loc_bg"], border=None, radius=0.02,
+                fitz.Rect(inner_left - 4, self.y - 9, card_right - 10, self.y - 9 + loc_h),
+                fill=_C["loc_bg"],
+                border=None,
+                radius=0.02,
             )
         self._draw_locs_2col(g.locations, inner_left, max_n=_MAX_LOCS_COMPACT)
 
@@ -811,15 +858,13 @@ class _PDFBuilder:
         self.ensure_space(row_h + 30)
         self._rect(
             fitz.Rect(_ML, self.y - 2, _PAGE_W - _MR, self.y - 2 + row_h),
-            fill=_C["table_hdr_bg"], border=None,
+            fill=_C["table_hdr_bg"],
+            border=None,
         )
         hdr_y = self.y + 10
-        self.page.insert_text(fitz.Point(_ML + 6, hdr_y), "SEV",
-                              fontsize=7, fontname=_FB, color=_C["text2"])
-        self.page.insert_text(fitz.Point(_ML + 55, hdr_y), "FINDING",
-                              fontsize=7, fontname=_FB, color=_C["text2"])
-        self.page.insert_text(fitz.Point(_PAGE_W - _MR - 30, hdr_y), "QTY",
-                              fontsize=7, fontname=_FB, color=_C["text2"])
+        self.page.insert_text(fitz.Point(_ML + 6, hdr_y), "SEV", fontsize=7, fontname=_FB, color=_C["text2"])
+        self.page.insert_text(fitz.Point(_ML + 55, hdr_y), "FINDING", fontsize=7, fontname=_FB, color=_C["text2"])
+        self.page.insert_text(fitz.Point(_PAGE_W - _MR - 30, hdr_y), "QTY", fontsize=7, fontname=_FB, color=_C["text2"])
         self.y += row_h + 1
 
     def draw_table_rows(self, groups: list[_GroupedFinding]) -> None:
@@ -835,8 +880,7 @@ class _PDFBuilder:
             title_text = g.title
             max_title_w = _CW - 120
             if _tw(title_text, _FB, 8.5) > max_title_w:
-                while (_tw(title_text + "...", _FB, 8.5) > max_title_w
-                       and len(title_text) > 20):
+                while _tw(title_text + "...", _FB, 8.5) > max_title_w and len(title_text) > 20:
                     title_text = title_text[:-1]
                 title_text += "..."
 
@@ -848,24 +892,30 @@ class _PDFBuilder:
             if idx % 2 == 0:
                 self._rect(
                     fitz.Rect(_ML, row_top, _PAGE_W - _MR, row_top + row_h),
-                    fill=_C["table_alt"], border=None,
+                    fill=_C["table_alt"],
+                    border=None,
                 )
 
             # Badge
             badge_y = self.y + 10
-            self._badge(_ML + 4, badge_y, g.severity.name,
-                        bg=sev_bg, fg=sev_fg, size=6, hpad=3, vpad=1.5)
+            self._badge(_ML + 4, badge_y, g.severity.name, bg=sev_bg, fg=sev_fg, size=6, hpad=3, vpad=1.5)
 
             # Title
             self.page.insert_text(
-                fitz.Point(_ML + 55, self.y + 10), title_text,
-                fontsize=8.5, fontname=_FB, color=_C["text"],
+                fitz.Point(_ML + 55, self.y + 10),
+                title_text,
+                fontsize=8.5,
+                fontname=_FB,
+                color=_C["text"],
             )
 
             # Count
             self.page.insert_text(
-                fitz.Point(_PAGE_W - _MR - 25, self.y + 10), str(g.count),
-                fontsize=8.5, fontname=_FB, color=_C["text2"],
+                fitz.Point(_PAGE_W - _MR - 25, self.y + 10),
+                str(g.count),
+                fontsize=8.5,
+                fontname=_FB,
+                color=_C["text2"],
             )
 
             # Inline locations
@@ -878,7 +928,8 @@ class _PDFBuilder:
             self.page.draw_line(
                 fitz.Point(_ML, self.y - 2),
                 fitz.Point(_PAGE_W - _MR, self.y - 2),
-                color=_C["accent"], width=0.2,
+                color=_C["accent"],
+                width=0.2,
             )
 
     # -- Finding dispatcher -------------------------------------------------
@@ -909,8 +960,10 @@ class _PDFBuilder:
         self._text(_ML, "Report Summary", font=_FB, size=18, color=_C["white"])
         self.y += 8
         self.page.draw_line(
-            fitz.Point(_ML, self.y), fitz.Point(_PAGE_W - _MR, self.y),
-            color=_C["accent"], width=1.2,
+            fitz.Point(_ML, self.y),
+            fitz.Point(_PAGE_W - _MR, self.y),
+            color=_C["accent"],
+            width=1.2,
         )
         self.y += 20
 
@@ -931,21 +984,31 @@ class _PDFBuilder:
         row_h = 22
         self._rect(
             fitz.Rect(tl, self.y - 2, tl + table_w, self.y - 2 + row_h),
-            fill=_C["table_hdr_bg"], border=None,
+            fill=_C["table_hdr_bg"],
+            border=None,
         )
         hdr_y = self.y + 12
         self.page.insert_text(
-            fitz.Point(tl + 8, hdr_y), "Category",
-            fontsize=9, fontname=_FB, color=_C["text2"],
+            fitz.Point(tl + 8, hdr_y),
+            "Category",
+            fontsize=9,
+            fontname=_FB,
+            color=_C["text2"],
         )
         for i, sev in enumerate(Severity):
             self.page.insert_text(
                 fitz.Point(tl + label_col_w + i * sev_col_w + 5, hdr_y),
-                sev.name, fontsize=8, fontname=_FB, color=_C["text2"],
+                sev.name,
+                fontsize=8,
+                fontname=_FB,
+                color=_C["text2"],
             )
         self.page.insert_text(
             fitz.Point(tl + label_col_w + len(Severity) * sev_col_w + 5, hdr_y),
-            "TOTAL", fontsize=8, fontname=_FB, color=_C["text2"],
+            "TOTAL",
+            fontsize=8,
+            fontname=_FB,
+            color=_C["text2"],
         )
         self.y += row_h + 2
 
@@ -966,23 +1029,33 @@ class _PDFBuilder:
             if row_idx % 2 == 0:
                 self._rect(
                     fitz.Rect(tl, row_top, tl + table_w, row_top + row_h),
-                    fill=_C["table_alt"], border=None,
+                    fill=_C["table_alt"],
+                    border=None,
                 )
             data_y = self.y + 12
             self.page.insert_text(
-                fitz.Point(tl + 8, data_y), cat,
-                fontsize=9, fontname=_F, color=_C["text"],
+                fitz.Point(tl + 8, data_y),
+                cat,
+                fontsize=9,
+                fontname=_F,
+                color=_C["text"],
             )
             for i, sev in enumerate(Severity):
                 c = counts.get(sev, 0)
                 if c > 0:
                     self.page.insert_text(
                         fitz.Point(tl + label_col_w + i * sev_col_w + 5, data_y),
-                        str(c), fontsize=9, fontname=_F, color=_SEV_BG[sev],
+                        str(c),
+                        fontsize=9,
+                        fontname=_F,
+                        color=_SEV_BG[sev],
                     )
             self.page.insert_text(
                 fitz.Point(tl + label_col_w + len(Severity) * sev_col_w + 5, data_y),
-                str(row_total), fontsize=9, fontname=_FB, color=_C["white"],
+                str(row_total),
+                fontsize=9,
+                fontname=_FB,
+                color=_C["white"],
             )
             self.y += row_h
             row_idx += 1
@@ -990,23 +1063,34 @@ class _PDFBuilder:
         # Grand total row
         self._rect(
             fitz.Rect(tl, self.y - 2, tl + table_w, self.y - 2 + row_h),
-            fill=_C["card_bg"], border=_C["card_border"], width=0.5,
+            fill=_C["card_bg"],
+            border=_C["card_border"],
+            width=0.5,
         )
         gt_y = self.y + 12
         self.page.insert_text(
-            fitz.Point(tl + 8, gt_y), "TOTAL",
-            fontsize=9, fontname=_FB, color=_C["white"],
+            fitz.Point(tl + 8, gt_y),
+            "TOTAL",
+            fontsize=9,
+            fontname=_FB,
+            color=_C["white"],
         )
         for i, sev in enumerate(Severity):
             c = grand_by_sev.get(sev, 0)
             if c > 0:
                 self.page.insert_text(
                     fitz.Point(tl + label_col_w + i * sev_col_w + 5, gt_y),
-                    str(c), fontsize=9, fontname=_FB, color=_SEV_BG[sev],
+                    str(c),
+                    fontsize=9,
+                    fontname=_FB,
+                    color=_SEV_BG[sev],
                 )
         self.page.insert_text(
             fitz.Point(tl + label_col_w + len(Severity) * sev_col_w + 5, gt_y),
-            str(grand_total), fontsize=9, fontname=_FB, color=_C["white"],
+            str(grand_total),
+            fontsize=9,
+            fontname=_FB,
+            color=_C["white"],
         )
         self.y += row_h + 20
 
@@ -1014,7 +1098,9 @@ class _PDFBuilder:
         self._text(
             _ML,
             f"Generated by Ren'Py Analyzer on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            font=_F, size=8, color=_C["text3"],
+            font=_F,
+            size=8,
+            color=_C["text3"],
         )
         self._draw_footer()
 
@@ -1039,15 +1125,21 @@ class _PDFBuilder:
                 entry_font = _FB if level == 1 else _F
                 entry_fs = 11 if level == 1 else 10
                 toc_page.insert_text(
-                    fitz.Point(_ML + indent, y), title,
-                    fontsize=entry_fs, fontname=entry_font, color=_C["white"],
+                    fitz.Point(_ML + indent, y),
+                    title,
+                    fontsize=entry_fs,
+                    fontname=entry_font,
+                    color=_C["white"],
                 )
                 # Page number
                 pn_str = str(page_display)
                 pn_w = _tw(pn_str, _F, 10)
                 toc_page.insert_text(
-                    fitz.Point(_PAGE_W - _MR - pn_w, y), pn_str,
-                    fontsize=10, fontname=_F, color=_C["text2"],
+                    fitz.Point(_PAGE_W - _MR - pn_w, y),
+                    pn_str,
+                    fontsize=10,
+                    fontname=_F,
+                    color=_C["text2"],
                 )
                 # Dotted leader
                 title_w = _tw(title, entry_font, entry_fs)
@@ -1057,17 +1149,20 @@ class _PDFBuilder:
                     toc_page.draw_line(
                         fitz.Point(leader_start, y + 1),
                         fitz.Point(leader_end, y + 1),
-                        color=_C["accent"], width=0.5, dashes="[2] 0",
+                        color=_C["accent"],
+                        width=0.5,
+                        dashes="[2] 0",
                     )
                 # Clickable link
-                link_rect = fitz.Rect(_ML + indent, y - 12,
-                                      _PAGE_W - _MR, y + 4)
-                toc_page.insert_link({
-                    "kind": fitz.LINK_GOTO,
-                    "from": link_rect,
-                    "page": page_idx,
-                    "to": fitz.Point(0, max(0, target_y - 20)),
-                })
+                link_rect = fitz.Rect(_ML + indent, y - 12, _PAGE_W - _MR, y + 4)
+                toc_page.insert_link(
+                    {
+                        "kind": fitz.LINK_GOTO,
+                        "from": link_rect,
+                        "page": page_idx,
+                        "to": fitz.Point(0, max(0, target_y - 20)),
+                    }
+                )
                 y += 22 if level == 1 else 18
 
         if self._bookmark_toc:
@@ -1080,6 +1175,7 @@ class _PDFBuilder:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def generate_pdf(
     findings: list[Finding],

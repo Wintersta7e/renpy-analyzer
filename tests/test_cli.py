@@ -18,30 +18,39 @@ def _make_project(tmp_path, script=""):
 
 
 def test_cli_no_findings_exit_0(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             return
-    """)
+    """,
+    )
     result = CliRunner().invoke(analyze, [path])
     assert result.exit_code == 0
     assert "No issues found" in result.output
 
 
 def test_cli_findings_exit_1(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     result = CliRunner().invoke(analyze, [path])
     assert result.exit_code == 1
     assert "nonexistent" in result.output
 
 
 def test_cli_checks_filter(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     # Only run Variables check — should not detect the missing label
     result = CliRunner().invoke(analyze, [path, "--checks", "Variables"])
     assert result.exit_code == 0
@@ -55,10 +64,13 @@ def test_cli_unknown_check_exit_2(tmp_path):
 
 
 def test_cli_json_format(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     result = CliRunner().invoke(analyze, [path, "--format", "json"])
     assert result.exit_code == 1
     data = json.loads(result.output)
@@ -69,10 +81,13 @@ def test_cli_json_format(tmp_path):
 
 
 def test_cli_pdf_export(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     pdf_path = str(tmp_path / "report.pdf")
     result = CliRunner().invoke(analyze, [path, "--output", pdf_path])
     assert result.exit_code == 1

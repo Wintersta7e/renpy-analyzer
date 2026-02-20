@@ -19,6 +19,7 @@ dev = [
     "pytest>=7.0",
     "pytest-cov",
     "ruff",
+    "mypy",
 ]
 
 [project.scripts]
@@ -30,12 +31,81 @@ renpy-analyzer-gui = "renpy_analyzer.app:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# =============================================================================
+# Ruff — linter + formatter
+# =============================================================================
+
 [tool.ruff]
 target-version = "py310"
 line-length = 120
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I"]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort (import sorting)
+    "UP",    # pyupgrade (modern Python syntax)
+    "B",     # flake8-bugbear (common bug patterns)
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long — let formatter handle wrapping where it can
+    "SIM108", # ternary operator — not always clearer
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["renpy_analyzer"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# =============================================================================
+# Mypy — type checker
+# =============================================================================
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false          # gradual — don't require annotations everywhere yet
+check_untyped_defs = true              # but DO check bodies of untyped functions
+ignore_missing_imports = true          # third-party libs without stubs (fitz, customtkinter)
+exclude = [
+    "bridge_worker\\.py$",             # runs under SDK Python, imports renpy.*
+    "build_venv/",
+]
+
+[[tool.mypy.overrides]]
+module = "renpy_analyzer.report.pdf"
+disable_error_code = ["union-attr"]    # fitz page methods return Any — suppress until stubs exist
+
+# =============================================================================
+# Pytest + Coverage
+# =============================================================================
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = [
+    "--tb=short",
+    "--strict-markers",
+]
+
+[tool.coverage.run]
+source = ["renpy_analyzer"]
+omit = [
+    "src/renpy_analyzer/app.py",           # GUI — not unit-testable
+    "src/renpy_analyzer/bridge_worker.py", # runs under SDK Python
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]

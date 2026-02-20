@@ -28,44 +28,44 @@ def check(project: ProjectModel) -> list[Finding]:
         speaker_locations.setdefault(dl.speaker, []).append(dl)
 
     for speaker, usages in speaker_locations.items():
-        if (speaker not in defined_chars and speaker not in non_char_defines
-                and speaker not in BUILTIN_SPEAKERS):
+        if speaker not in defined_chars and speaker not in non_char_defines and speaker not in BUILTIN_SPEAKERS:
             first = usages[0]
             if len(usages) > 1:
-                count_note = (
-                    f" (and {len(usages) - 1} other "
-                    f"location{'s' if len(usages) > 2 else ''})"
-                )
+                count_note = f" (and {len(usages) - 1} other location{'s' if len(usages) > 2 else ''})"
             else:
                 count_note = ""
-            findings.append(Finding(
-                severity=Severity.HIGH,
-                check_name="characters",
-                title=f"Undefined speaker '{speaker}'",
-                description=(
-                    f"Speaker '{speaker}' is used in dialogue at "
-                    f"{first.file}:{first.line}{count_note} but is never "
-                    f"defined with 'define {speaker} = Character(...)'. "
-                ),
-                file=first.file,
-                line=first.line,
-                suggestion=f"Add 'define {speaker} = Character(\"Name\")' to your defines file.",
-            ))
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="characters",
+                    title=f"Undefined speaker '{speaker}'",
+                    description=(
+                        f"Speaker '{speaker}' is used in dialogue at "
+                        f"{first.file}:{first.line}{count_note} but is never "
+                        f"defined with 'define {speaker} = Character(...)'. "
+                    ),
+                    file=first.file,
+                    line=first.line,
+                    suggestion=f"Add 'define {speaker} = Character(\"Name\")' to your defines file.",
+                )
+            )
 
     for shorthand, defs in defined_chars.items():
         if shorthand not in speakers_used:
             d = defs[0]
-            findings.append(Finding(
-                severity=Severity.LOW,
-                check_name="characters",
-                title=f"Unused character '{shorthand}'",
-                description=(
-                    f"Character '{shorthand}' ('{d.display_name}') defined at "
-                    f"{d.file}:{d.line} is never used as a dialogue speaker."
-                ),
-                file=d.file,
-                line=d.line,
-                suggestion="Remove if no longer needed.",
-            ))
+            findings.append(
+                Finding(
+                    severity=Severity.LOW,
+                    check_name="characters",
+                    title=f"Unused character '{shorthand}'",
+                    description=(
+                        f"Character '{shorthand}' ('{d.display_name}') defined at "
+                        f"{d.file}:{d.line} is never used as a dialogue speaker."
+                    ),
+                    file=d.file,
+                    line=d.line,
+                    suggestion="Remove if no longer needed.",
+                )
+            )
 
     return findings

@@ -62,8 +62,7 @@ def find_sdk_python(sdk_path: str) -> str:
             return str(candidate)
 
     raise RuntimeError(
-        "Could not find SDK Python binary in {}/lib/py3-*/. "
-        "Is this a valid Ren'Py SDK directory?".format(sdk_path)
+        f"Could not find SDK Python binary in {sdk_path}/lib/py3-*/. Is this a valid Ren'Py SDK directory?"
     )
 
 
@@ -133,9 +132,7 @@ def parse_files_with_sdk(
     )
 
     # On Windows, prevent a console window from flashing up
-    kwargs = {}
-    if sys.platform == "win32":
-        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    creationflags: int = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
 
     try:
         proc = subprocess.run(
@@ -144,17 +141,12 @@ def parse_files_with_sdk(
             capture_output=True,
             text=True,
             timeout=timeout,
-            **kwargs,
+            creationflags=creationflags,
         )
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(
-            "SDK parser timed out after {}s. "
-            "Try using the regex parser instead.".format(timeout)
-        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"SDK parser timed out after {timeout}s. Try using the regex parser instead.") from exc
     except OSError as exc:
-        raise RuntimeError(
-            "Failed to launch SDK Python at {}: {}".format(python_bin, exc)
-        )
+        raise RuntimeError(f"Failed to launch SDK Python at {python_bin}: {exc}") from exc
 
     if proc.stderr:
         for line in proc.stderr.strip().splitlines():
@@ -162,33 +154,27 @@ def parse_files_with_sdk(
 
     if proc.returncode != 0:
         stderr_excerpt = (proc.stderr or "")[:500]
-        raise RuntimeError(
-            "SDK parser exited with code {}:\n{}".format(
-                proc.returncode, stderr_excerpt
-            )
-        )
+        raise RuntimeError(f"SDK parser exited with code {proc.returncode}:\n{stderr_excerpt}")
 
     # Parse JSON response
     try:
         response = json.loads(proc.stdout)
     except (json.JSONDecodeError, ValueError) as exc:
-        raise RuntimeError("Invalid JSON from SDK parser: {}".format(exc))
+        raise RuntimeError(f"Invalid JSON from SDK parser: {exc}") from exc
 
     if not response.get("success", False):
         errors = response.get("errors", [])
         msg = "; ".join(e.get("message", "unknown") for e in errors)
-        raise RuntimeError("SDK parser failed: {}".format(msg))
+        raise RuntimeError(f"SDK parser failed: {msg}")
 
     version = response.get("version", "unknown")
-    logger.info("SDK parser (Ren'Py %s) returned %d file results",
-                version, len(response.get("results", {})))
+    logger.info("SDK parser (Ren'Py %s) returned %d file results", version, len(response.get("results", {})))
 
     # Log per-file errors as warnings (non-fatal)
     for err in response.get("errors", []):
-        logger.warning("SDK parse error in %s: %s",
-                        err.get("file", "?"), err.get("message", "?"))
+        logger.warning("SDK parse error in %s: %s", err.get("file", "?"), err.get("message", "?"))
 
-    return response.get("results", {})
+    return response.get("results", {})  # type: ignore[no-any-return]
 
 
 def convert_file_result(data: dict, filepath: str) -> dict:
@@ -199,22 +185,13 @@ def convert_file_result(data: dict, filepath: str) -> dict:
     rel_path = filepath  # Caller will rewrite to relative path
 
     def _labels():
-        return [
-            Label(name=d["name"], file=rel_path, line=d["line"])
-            for d in data.get("labels", [])
-        ]
+        return [Label(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("labels", [])]
 
     def _jumps():
-        return [
-            Jump(target=d["target"], file=rel_path, line=d["line"])
-            for d in data.get("jumps", [])
-        ]
+        return [Jump(target=d["target"], file=rel_path, line=d["line"]) for d in data.get("jumps", [])]
 
     def _calls():
-        return [
-            Call(target=d["target"], file=rel_path, line=d["line"])
-            for d in data.get("calls", [])
-        ]
+        return [Call(target=d["target"], file=rel_path, line=d["line"]) for d in data.get("calls", [])]
 
     def _dynamic_jumps():
         return [
@@ -263,10 +240,7 @@ def convert_file_result(data: dict, filepath: str) -> dict:
         ]
 
     def _shows():
-        return [
-            ShowRef(image_name=d["image_name"], file=rel_path, line=d["line"])
-            for d in data.get("shows", [])
-        ]
+        return [ShowRef(image_name=d["image_name"], file=rel_path, line=d["line"]) for d in data.get("shows", [])]
 
     def _images():
         return [
@@ -302,15 +276,11 @@ def convert_file_result(data: dict, filepath: str) -> dict:
         ]
 
     def _dialogue():
-        return [
-            DialogueLine(speaker=d["speaker"], file=rel_path, line=d["line"])
-            for d in data.get("dialogue", [])
-        ]
+        return [DialogueLine(speaker=d["speaker"], file=rel_path, line=d["line"]) for d in data.get("dialogue", [])]
 
     def _conditions():
         return [
-            Condition(expression=d["expression"], file=rel_path, line=d["line"])
-            for d in data.get("conditions", [])
+            Condition(expression=d["expression"], file=rel_path, line=d["line"]) for d in data.get("conditions", [])
         ]
 
     return {

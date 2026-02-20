@@ -1,4 +1,5 @@
 """Smoke tests for data models."""
+
 from renpy_analyzer.models import (
     Finding,
     ProjectModel,

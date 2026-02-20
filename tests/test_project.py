@@ -9,17 +9,23 @@ from renpy_analyzer.project import load_project
 def _make_project(tmp_path: Path) -> Path:
     game = tmp_path / "game"
     game.mkdir()
-    (game / "script.rpy").write_text(textwrap.dedent("""\
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
         label start:
             jump chapter1
         label chapter1:
             mc "Hello"
             jump ending
-    """), encoding="utf-8")
-    (game / "variables.rpy").write_text(textwrap.dedent("""\
+    """),
+        encoding="utf-8",
+    )
+    (game / "variables.rpy").write_text(
+        textwrap.dedent("""\
         default Lydia = 0
         default Barb = 0
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     return tmp_path
 
 
@@ -56,12 +62,15 @@ def test_load_empty_project(tmp_path):
 
 def test_load_project_no_game_subdir(tmp_path):
     """When no game/ subdir exists, scan the directory itself."""
-    (tmp_path / "script.rpy").write_text(textwrap.dedent("""\
+    (tmp_path / "script.rpy").write_text(
+        textwrap.dedent("""\
         label start:
             jump ending
         label ending:
             return
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     model = load_project(str(tmp_path))
     assert len(model.labels) == 2
     assert model.root_dir == str(tmp_path)
@@ -73,19 +82,25 @@ def test_load_project_nested_files(tmp_path):
     game.mkdir()
     subdir = game / "scripts" / "chapter1"
     subdir.mkdir(parents=True)
-    (subdir / "ch1.rpy").write_text(textwrap.dedent("""\
+    (subdir / "ch1.rpy").write_text(
+        textwrap.dedent("""\
         label ch1_start:
             "Chapter 1"
-    """), encoding="utf-8")
-    (game / "main.rpy").write_text(textwrap.dedent("""\
+    """),
+        encoding="utf-8",
+    )
+    (game / "main.rpy").write_text(
+        textwrap.dedent("""\
         label start:
             jump ch1_start
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     model = load_project(str(tmp_path))
     assert len(model.files) == 2
     assert len(model.labels) == 2
     # Nested file should have relative path with subdir
-    nested_label = [l for l in model.labels if l.name == "ch1_start"][0]
+    nested_label = next(lbl for lbl in model.labels if lbl.name == "ch1_start")
     assert "scripts" in nested_label.file or "chapter1" in nested_label.file
 
 

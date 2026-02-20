@@ -8,6 +8,7 @@ from enum import IntEnum
 
 class Severity(IntEnum):
     """Finding severity levels, ordered from most to least severe."""
+
     CRITICAL = 0
     HIGH = 1
     MEDIUM = 2
@@ -136,6 +137,7 @@ class Finding:
 @dataclass
 class ProjectModel:
     """Aggregated data from all parsed .rpy files in a project."""
+
     root_dir: str
     files: list[str] = field(default_factory=list)
     labels: list[Label] = field(default_factory=list)

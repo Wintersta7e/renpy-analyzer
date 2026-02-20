@@ -80,54 +80,73 @@ class RenpyAnalyzerApp(ctk.CTk):
         title_frame = ctk.CTkFrame(top, fg_color="transparent")
         title_frame.pack(fill="x", padx=20, pady=(15, 5))
         ctk.CTkLabel(
-            title_frame, text="Ren'Py Analyzer",
+            title_frame,
+            text="Ren'Py Analyzer",
             font=ctk.CTkFont(size=24, weight="bold"),
         ).pack(side="left")
         ctk.CTkLabel(
-            title_frame, text=f"v{__version__}",
-            font=ctk.CTkFont(size=12), text_color="gray",
+            title_frame,
+            text=f"v{__version__}",
+            font=ctk.CTkFont(size=12),
+            text_color="gray",
         ).pack(side="left", padx=(10, 0), pady=(8, 0))
 
         # Path selector
         path_frame = ctk.CTkFrame(top)
         path_frame.pack(fill="x", padx=20, pady=(5, 0))
         ctk.CTkLabel(
-            path_frame, text="Project Path:", font=ctk.CTkFont(size=13),
+            path_frame,
+            text="Project Path:",
+            font=ctk.CTkFont(size=13),
         ).pack(side="left", padx=(10, 5), pady=10)
         self._path_entry = ctk.CTkEntry(
-            path_frame, textvariable=self._path_var,
-            placeholder_text="Select a Ren'Py project folder...", width=500,
+            path_frame,
+            textvariable=self._path_var,
+            placeholder_text="Select a Ren'Py project folder...",
+            width=500,
         )
         self._path_entry.pack(side="left", fill="x", expand=True, padx=5, pady=10)
         ctk.CTkButton(
-            path_frame, text="Browse...", width=100, command=self._browse_folder,
+            path_frame,
+            text="Browse...",
+            width=100,
+            command=self._browse_folder,
         ).pack(side="right", padx=(5, 10), pady=10)
 
         # Auto-detection note
         ctk.CTkLabel(
-            top, textvariable=self._game_dir_note,
-            font=ctk.CTkFont(size=11), text_color="#28A745",
+            top,
+            textvariable=self._game_dir_note,
+            font=ctk.CTkFont(size=11),
+            text_color="#28A745",
         ).pack(fill="x", padx=35, pady=(0, 2))
 
         # SDK Path selector (optional)
         sdk_frame = ctk.CTkFrame(top)
         sdk_frame.pack(fill="x", padx=20, pady=(2, 0))
         ctk.CTkLabel(
-            sdk_frame, text="SDK Path:", font=ctk.CTkFont(size=13),
+            sdk_frame,
+            text="SDK Path:",
+            font=ctk.CTkFont(size=13),
         ).pack(side="left", padx=(10, 5), pady=10)
         self._sdk_entry = ctk.CTkEntry(
-            sdk_frame, textvariable=self._sdk_path_var,
+            sdk_frame,
+            textvariable=self._sdk_path_var,
             placeholder_text="(Optional) Select Ren'Py SDK folder for accurate parsing...",
             width=500,
         )
         self._sdk_entry.pack(side="left", fill="x", expand=True, padx=5, pady=10)
         ctk.CTkButton(
-            sdk_frame, text="Browse...", width=100, command=self._browse_sdk,
+            sdk_frame,
+            text="Browse...",
+            width=100,
+            command=self._browse_sdk,
         ).pack(side="right", padx=(5, 10), pady=10)
 
         # SDK validation note
         ctk.CTkLabel(
-            top, textvariable=self._sdk_note,
+            top,
+            textvariable=self._sdk_note,
             font=ctk.CTkFont(size=11),
         ).pack(fill="x", padx=35, pady=(0, 2))
 
@@ -135,7 +154,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         checks_frame = ctk.CTkFrame(top)
         checks_frame.pack(fill="x", padx=20, pady=(5, 5))
         ctk.CTkLabel(
-            checks_frame, text="Checks to Run:",
+            checks_frame,
+            text="Checks to Run:",
             font=ctk.CTkFont(size=13, weight="bold"),
         ).grid(row=0, column=0, columnspan=3, sticky="w", padx=10, pady=(8, 4))
 
@@ -143,8 +163,10 @@ class RenpyAnalyzerApp(ctk.CTk):
             var = BooleanVar(value=True)
             self._check_vars[name] = var
             ctk.CTkCheckBox(
-                checks_frame, text=_CHECK_DESCRIPTIONS.get(name, name),
-                variable=var, font=ctk.CTkFont(size=12),
+                checks_frame,
+                text=_CHECK_DESCRIPTIONS.get(name, name),
+                variable=var,
+                font=ctk.CTkFont(size=12),
             ).grid(row=1 + idx // 3, column=idx % 3, sticky="w", padx=(15, 10), pady=4)
         for c in range(3):
             checks_frame.columnconfigure(c, weight=1)
@@ -152,9 +174,12 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Analyze button
         self._analyze_btn = ctk.CTkButton(
-            top, text="Analyze Game",
+            top,
+            text="Analyze Game",
             font=ctk.CTkFont(size=15, weight="bold"),
-            height=40, width=200, command=self._start_analysis,
+            height=40,
+            width=200,
+            command=self._start_analysis,
         )
         self._analyze_btn.pack(pady=(5, 8))
 
@@ -164,15 +189,22 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         self._status_var = StringVar(value="Ready")
         ctk.CTkLabel(
-            bottom, textvariable=self._status_var,
-            font=ctk.CTkFont(size=11), text_color="gray", anchor="w",
+            bottom,
+            textvariable=self._status_var,
+            font=ctk.CTkFont(size=11),
+            text_color="gray",
+            anchor="w",
         ).pack(fill="x", side="bottom", padx=20, pady=(2, 8))
 
         self._export_frame = ctk.CTkFrame(bottom, fg_color="transparent")
         self._export_btn = ctk.CTkButton(
-            self._export_frame, text="Export PDF Report",
+            self._export_frame,
+            text="Export PDF Report",
             font=ctk.CTkFont(size=13, weight="bold"),
-            height=36, width=180, state="disabled", command=self._export_pdf,
+            height=36,
+            width=180,
+            state="disabled",
+            command=self._export_pdf,
         )
         self._export_btn.pack(pady=6)
 
@@ -183,22 +215,29 @@ class RenpyAnalyzerApp(ctk.CTk):
         # Progress (shown during analysis)
         self._progress_frame = ctk.CTkFrame(self._middle, fg_color="transparent")
         self._progress_label = ctk.CTkLabel(
-            self._progress_frame, text="Preparing...", font=ctk.CTkFont(size=12),
+            self._progress_frame,
+            text="Preparing...",
+            font=ctk.CTkFont(size=12),
         )
         self._progress_label.pack(fill="x", padx=10, pady=(10, 2))
         self._progress_bar = ctk.CTkProgressBar(self._progress_frame, width=400)
         self._progress_bar.pack(fill="x", padx=40, pady=(2, 4))
         self._progress_bar.set(0)
         self._cancel_btn = ctk.CTkButton(
-            self._progress_frame, text="Cancel", width=100,
-            fg_color="#DC3545", hover_color="#A71D2A",
+            self._progress_frame,
+            text="Cancel",
+            width=100,
+            fg_color="#DC3545",
+            hover_color="#A71D2A",
             command=self._request_cancel,
         )
         self._cancel_btn.pack(pady=(2, 8))
 
         # Summary label (shown after analysis)
         self._summary_label = ctk.CTkLabel(
-            self._middle, text="", font=ctk.CTkFont(size=13, weight="bold"),
+            self._middle,
+            text="",
+            font=ctk.CTkFont(size=13, weight="bold"),
         )
 
         # Results: a single Textbox widget (fast, lightweight)
@@ -293,7 +332,9 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._progress_frame.pack(fill="x", pady=(10, 10))
 
         self._analysis_thread = threading.Thread(
-            target=self._run_analysis, args=(project_path, enabled), daemon=True,
+            target=self._run_analysis,
+            args=(project_path, enabled),
+            daemon=True,
         )
         self._analysis_thread.start()
 
@@ -465,8 +506,10 @@ class RenpyAnalyzerApp(ctk.CTk):
             project_path = getattr(self, "_project_path", "")
             game_name = Path(project_path).name if project_path else "Ren'Py Project"
             generate_pdf(
-                findings=self._findings, output_path=output_path,
-                game_name=game_name, game_path=project_path,
+                findings=self._findings,
+                output_path=output_path,
+                game_name=game_name,
+                game_path=project_path,
             )
             logger.info("PDF exported to %s", output_path)
             self.after(0, self._pdf_export_done, output_path, None)
@@ -490,6 +533,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         """Override destroy to ensure clean exit without 'Not Responding'."""
         # Force-kill any background threads by just exiting
         import os
+
         os._exit(0)
 
 

@@ -34,7 +34,9 @@ RE_DEFINE = re.compile(r"^\s*define\s+([\w.]+)\s*=\s*(.+)")
 RE_ASSIGN = re.compile(r"^\s*\$\s+(\w+)\s*=\s*(.+)")
 RE_AUGMENT = re.compile(r"^\s*\$\s+(\w+)\s*[+\-*/]=\s*(.+)")
 RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
-RE_SCENE = re.compile(r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?")
+RE_SCENE = re.compile(
+    r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?"
+)
 RE_SHOW = re.compile(r"^\s+show\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
@@ -49,21 +51,65 @@ RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
 
-RENPY_KEYWORDS = frozenset({
-    # Core Ren'Py statements
-    "jump", "call", "return", "scene", "show", "hide", "with",
-    "play", "stop", "queue", "voice", "define", "default", "init",
-    "python", "label", "menu", "if", "elif", "else", "while", "for",
-    "pass", "image", "transform", "screen", "style", "translate",
-    "pause", "nvl", "window", "camera", "at", "extend", "narrator",
-    "rpy",
-    # Screen language keywords (can appear as `keyword "string"`)
-    "add", "text", "textbutton", "key", "use",
-    "scrollbars", "layout", "id", "variant",
-    "style_prefix", "size_group", "thumb",
-    "color", "insensitive_color", "font",
-    "background", "foreground",
-})
+RENPY_KEYWORDS = frozenset(
+    {
+        # Core Ren'Py statements
+        "jump",
+        "call",
+        "return",
+        "scene",
+        "show",
+        "hide",
+        "with",
+        "play",
+        "stop",
+        "queue",
+        "voice",
+        "define",
+        "default",
+        "init",
+        "python",
+        "label",
+        "menu",
+        "if",
+        "elif",
+        "else",
+        "while",
+        "for",
+        "pass",
+        "image",
+        "transform",
+        "screen",
+        "style",
+        "translate",
+        "pause",
+        "nvl",
+        "window",
+        "camera",
+        "at",
+        "extend",
+        "narrator",
+        "rpy",
+        # Screen language keywords (can appear as `keyword "string"`)
+        "add",
+        "text",
+        "textbutton",
+        "key",
+        "use",
+        "scrollbars",
+        "layout",
+        "id",
+        "variant",
+        "style_prefix",
+        "size_group",
+        "thumb",
+        "color",
+        "insensitive_color",
+        "font",
+        "background",
+        "foreground",
+    }
+)
 
 BUILTIN_IMAGES = frozenset({"black", "text", "vtext"})
 
@@ -153,17 +199,25 @@ def parse_file(filepath: str) -> dict:
         # --- Jump expression (before normal jump) ---
         m = RE_JUMP_EXPR.match(line)
         if m:
-            dynamic_jumps.append(DynamicJump(
-                expression=m.group(1).strip(), file=display_path, line=lineno,
-            ))
+            dynamic_jumps.append(
+                DynamicJump(
+                    expression=m.group(1).strip(),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
             continue
 
         # --- Call expression (before normal call) ---
         m = RE_CALL_EXPR.match(line)
         if m:
-            dynamic_jumps.append(DynamicJump(
-                expression=m.group(1).strip(), file=display_path, line=lineno,
-            ))
+            dynamic_jumps.append(
+                DynamicJump(
+                    expression=m.group(1).strip(),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
             continue
 
         # --- Jump ---
@@ -181,65 +235,90 @@ def parse_file(filepath: str) -> dict:
         # --- Character definition ---
         m = RE_CHARACTER.match(line)
         if m:
-            characters.append(CharacterDef(
-                shorthand=m.group(1),
-                display_name=m.group(2),
-                file=display_path,
-                line=lineno,
-            ))
+            characters.append(
+                CharacterDef(
+                    shorthand=m.group(1),
+                    display_name=m.group(2),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
             var_kind = "default" if line.lstrip().startswith("default") else "define"
-            variables.append(Variable(
-                name=m.group(1), file=display_path, line=lineno,
-                kind=var_kind, value=line.split("=", 1)[1].strip(),
-            ))
+            variables.append(
+                Variable(
+                    name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    kind=var_kind,
+                    value=line.split("=", 1)[1].strip(),
+                )
+            )
             continue
 
         # --- Image definition (assignment) ---
         m = RE_IMAGE_ASSIGN.match(line)
         if m:
-            images.append(ImageDef(
-                name=m.group(1).strip(),
-                file=display_path,
-                line=lineno,
-                value=m.group(2).strip(),
-            ))
+            images.append(
+                ImageDef(
+                    name=m.group(1).strip(),
+                    file=display_path,
+                    line=lineno,
+                    value=m.group(2).strip(),
+                )
+            )
             continue
 
         # --- Image definition (block) ---
         m = RE_IMAGE_BLOCK.match(line)
         if m:
-            images.append(ImageDef(
-                name=m.group(1).strip(),
-                file=display_path,
-                line=lineno,
-            ))
+            images.append(
+                ImageDef(
+                    name=m.group(1).strip(),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
             continue
 
         # --- Default variable ---
         m = RE_DEFAULT.match(line)
         if m:
-            variables.append(Variable(
-                name=m.group(1), file=display_path, line=lineno,
-                kind="default", value=m.group(2).strip(),
-            ))
+            variables.append(
+                Variable(
+                    name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    kind="default",
+                    value=m.group(2).strip(),
+                )
+            )
             continue
 
         # --- Define (non-character) ---
         m = RE_DEFINE.match(line)
         if m:
-            variables.append(Variable(
-                name=m.group(1), file=display_path, line=lineno,
-                kind="define", value=m.group(2).strip(),
-            ))
+            variables.append(
+                Variable(
+                    name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    kind="define",
+                    value=m.group(2).strip(),
+                )
+            )
             continue
 
         # --- Python augmented assignment ---
         m = RE_AUGMENT.match(line)
         if m:
-            variables.append(Variable(
-                name=m.group(1), file=display_path, line=lineno,
-                kind="augment",
-            ))
+            variables.append(
+                Variable(
+                    name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    kind="augment",
+                )
+            )
             continue
 
         # --- Python assignment (skip function calls) ---
@@ -248,89 +327,130 @@ def parse_file(filepath: str) -> dict:
 
         m = RE_ASSIGN.match(line)
         if m:
-            variables.append(Variable(
-                name=m.group(1), file=display_path, line=lineno,
-                kind="assign", value=m.group(2).strip(),
-            ))
+            variables.append(
+                Variable(
+                    name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    kind="assign",
+                    value=m.group(2).strip(),
+                )
+            )
             continue
 
         # --- Scene ---
         m = RE_SCENE.match(line)
         if m:
-            scenes.append(SceneRef(
-                image_name=m.group(1),
-                file=display_path,
-                line=lineno,
-                transition=m.group(2),
-            ))
+            scenes.append(
+                SceneRef(
+                    image_name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    transition=m.group(2),
+                )
+            )
             continue
 
         # --- Show ---
         m = RE_SHOW.match(line)
         if m:
-            shows.append(ShowRef(
-                image_name=m.group(1), file=display_path, line=lineno,
-            ))
+            shows.append(
+                ShowRef(
+                    image_name=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
             continue
 
         # --- Music play ---
         m = RE_MUSIC_PLAY.match(line)
         if m:
-            music.append(MusicRef(
-                path=m.group(1), file=display_path, line=lineno, action="play",
-            ))
+            music.append(
+                MusicRef(
+                    path=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    action="play",
+                )
+            )
             continue
 
         # --- Stop music/sound/voice/audio/movie ---
         m = RE_MUSIC_STOP.match(line)
         if m:
-            music.append(MusicRef(
-                path="", file=display_path, line=lineno, action="stop",
-            ))
+            music.append(
+                MusicRef(
+                    path="",
+                    file=display_path,
+                    line=lineno,
+                    action="stop",
+                )
+            )
             continue
 
         # --- Sound/voice/audio play ---
         m = RE_SOUND_PLAY.match(line)
         if m:
-            music.append(MusicRef(
-                path=m.group(2), file=display_path, line=lineno,
-                action=m.group(1),
-            ))
+            music.append(
+                MusicRef(
+                    path=m.group(2),
+                    file=display_path,
+                    line=lineno,
+                    action=m.group(1),
+                )
+            )
             continue
 
         # --- Queue music/sound/voice/audio ---
         m = RE_MUSIC_QUEUE.match(line)
         if m:
-            music.append(MusicRef(
-                path=m.group(2), file=display_path, line=lineno,
-                action="queue",
-            ))
+            music.append(
+                MusicRef(
+                    path=m.group(2),
+                    file=display_path,
+                    line=lineno,
+                    action="queue",
+                )
+            )
             continue
 
         # --- Standalone voice statement ---
         m = RE_VOICE_STMT.match(line)
         if m:
-            music.append(MusicRef(
-                path=m.group(1), file=display_path, line=lineno,
-                action="voice",
-            ))
+            music.append(
+                MusicRef(
+                    path=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                    action="voice",
+                )
+            )
             continue
 
         # --- Condition ---
         m = RE_CONDITION.match(line)
         if m:
-            conditions.append(Condition(
-                expression=m.group(1), file=display_path, line=lineno,
-            ))
+            conditions.append(
+                Condition(
+                    expression=m.group(1),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
 
         # --- Dialogue ---
         m = RE_DIALOGUE.match(line)
         if m:
             speaker = m.group(2)
             if speaker not in RENPY_KEYWORDS:
-                dialogue.append(DialogueLine(
-                    speaker=speaker, file=display_path, line=lineno,
-                ))
+                dialogue.append(
+                    DialogueLine(
+                        speaker=speaker,
+                        file=display_path,
+                        line=lineno,
+                    )
+                )
 
     # Finalize any in-progress menu at end of file
     if current_menu is not None:

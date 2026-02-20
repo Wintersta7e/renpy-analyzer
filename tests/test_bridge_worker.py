@@ -11,8 +11,6 @@ import sys
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # bridge_worker is standalone, import it via path manipulation
 sys.path.insert(0, "src/renpy_analyzer")
 from renpy_analyzer.bridge_worker import (
@@ -29,10 +27,10 @@ from renpy_analyzer.bridge_worker import (
     merge_results,
 )
 
-
 # ---------------------------------------------------------------------------
 # Regex pattern tests
 # ---------------------------------------------------------------------------
+
 
 class TestRegexPatterns:
     def test_assign_simple(self):
@@ -94,6 +92,7 @@ class TestRegexPatterns:
 # Mock AST node helpers
 # ---------------------------------------------------------------------------
 
+
 def _mock_node(cls_name, **attrs):
     """Create a mock AST node with given class name and attributes."""
     node = MagicMock()
@@ -109,6 +108,7 @@ def _mock_node(cls_name, **attrs):
 # ---------------------------------------------------------------------------
 # extract_from_node tests
 # ---------------------------------------------------------------------------
+
 
 class TestExtractFromNode:
     def test_label(self):
@@ -234,11 +234,15 @@ class TestExtractFromNode:
         child_jump = _mock_node("Jump", target="left_path", expression=False, linenumber=12)
         child_say = _mock_node("Say", who="mc", what="ok", linenumber=15)
 
-        node = _mock_node("Menu", items=[
-            ("Go left", None, [child_jump]),
-            ("Go right", "has_key", [child_say]),
-            ("Caption text", None, None),  # caption, not a choice
-        ], linenumber=10)
+        node = _mock_node(
+            "Menu",
+            items=[
+                ("Go left", None, [child_jump]),
+                ("Go right", "has_key", [child_say]),
+                ("Caption text", None, None),  # caption, not a choice
+            ],
+            linenumber=10,
+        )
         result = extract_from_node(node, None)
         assert len(result["menus"]) == 1
         menu = result["menus"][0]
@@ -248,10 +252,14 @@ class TestExtractFromNode:
         assert menu["choices"][1]["condition"] == "has_key"
 
     def test_if_conditions(self):
-        node = _mock_node("If", entries=[
-            ("score > 50", []),
-            ("True", []),  # else branch
-        ], linenumber=30)
+        node = _mock_node(
+            "If",
+            entries=[
+                ("score > 50", []),
+                ("True", []),  # else branch
+            ],
+            linenumber=30,
+        )
         result = extract_from_node(node, None)
         assert len(result["conditions"]) == 2
         assert result["conditions"][0]["expression"] == "score > 50"
@@ -272,6 +280,7 @@ class TestExtractFromNode:
 # ---------------------------------------------------------------------------
 # flatten_ast
 # ---------------------------------------------------------------------------
+
 
 def test_flatten_ast_single():
     """Node without get_children should return just itself."""
@@ -306,6 +315,7 @@ def test_flatten_ast_with_children():
 # merge_results
 # ---------------------------------------------------------------------------
 
+
 def test_merge_results():
     target = {"labels": [{"name": "a"}], "jumps": []}
     source = {"labels": [{"name": "b"}], "jumps": [{"target": "c"}]}
@@ -317,6 +327,7 @@ def test_merge_results():
 # ---------------------------------------------------------------------------
 # _extract_music
 # ---------------------------------------------------------------------------
+
 
 class TestExtractMusic:
     def test_play_music(self):
@@ -355,12 +366,12 @@ class TestExtractMusic:
 # main() — stdin/stdout JSON protocol (mocked, no SDK)
 # ---------------------------------------------------------------------------
 
+
 def test_main_invalid_json():
     """Invalid JSON on stdin should produce error response."""
     from renpy_analyzer.bridge_worker import main
 
-    with patch("sys.stdin", StringIO("not json")), \
-         patch("sys.stdout", new_callable=StringIO) as mock_out:
+    with patch("sys.stdin", StringIO("not json")), patch("sys.stdout", new_callable=StringIO) as mock_out:
         main()
         response = json.loads(mock_out.getvalue())
         assert response["success"] is False

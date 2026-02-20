@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import textwrap
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,10 +29,10 @@ from renpy_analyzer.sdk_bridge import (
     validate_sdk_path,
 )
 
-
 # ---------------------------------------------------------------------------
 # validate_sdk_path
 # ---------------------------------------------------------------------------
+
 
 def test_validate_sdk_path_missing_dir(tmp_path):
     assert validate_sdk_path(str(tmp_path / "nonexistent")) is False
@@ -62,6 +60,7 @@ def test_validate_sdk_path_no_python(tmp_path):
 # ---------------------------------------------------------------------------
 # find_sdk_python
 # ---------------------------------------------------------------------------
+
 
 def test_find_sdk_python_linux(tmp_path):
     (tmp_path / "renpy").mkdir()
@@ -99,6 +98,7 @@ def test_find_sdk_python_not_found(tmp_path):
 # convert_file_result — JSON dicts → model dataclasses
 # ---------------------------------------------------------------------------
 
+
 def test_convert_labels():
     data = {"labels": [{"name": "start", "line": 1}, {"name": "ending", "line": 20}]}
     result = convert_file_result(data, "script.rpy")
@@ -134,10 +134,12 @@ def test_convert_dynamic_jumps():
 
 
 def test_convert_variables():
-    data = {"variables": [
-        {"name": "score", "line": 3, "kind": "default", "value": "0"},
-        {"name": "flags", "line": 5, "kind": "assign", "value": "{}"},
-    ]}
+    data = {
+        "variables": [
+            {"name": "score", "line": 3, "kind": "default", "value": "0"},
+            {"name": "flags", "line": 5, "kind": "assign", "value": "{}"},
+        ]
+    }
     result = convert_file_result(data, "vars.rpy")
     assert len(result["variables"]) == 2
     assert isinstance(result["variables"][0], Variable)
@@ -147,15 +149,31 @@ def test_convert_variables():
 
 
 def test_convert_menus():
-    data = {"menus": [{
-        "line": 10,
-        "choices": [
-            {"text": "Go left", "line": 11, "content_lines": 2,
-             "has_jump": True, "has_return": False, "condition": None},
-            {"text": "Go right", "line": 14, "content_lines": 1,
-             "has_jump": False, "has_return": False, "condition": "has_key"},
-        ],
-    }]}
+    data = {
+        "menus": [
+            {
+                "line": 10,
+                "choices": [
+                    {
+                        "text": "Go left",
+                        "line": 11,
+                        "content_lines": 2,
+                        "has_jump": True,
+                        "has_return": False,
+                        "condition": None,
+                    },
+                    {
+                        "text": "Go right",
+                        "line": 14,
+                        "content_lines": 1,
+                        "has_jump": False,
+                        "has_return": False,
+                        "condition": "has_key",
+                    },
+                ],
+            }
+        ]
+    }
     result = convert_file_result(data, "script.rpy")
     assert len(result["menus"]) == 1
     menu = result["menus"][0]
@@ -167,9 +185,11 @@ def test_convert_menus():
 
 
 def test_convert_scenes():
-    data = {"scenes": [
-        {"image_name": "bg park day", "line": 8, "transition": "dissolve"},
-    ]}
+    data = {
+        "scenes": [
+            {"image_name": "bg park day", "line": 8, "transition": "dissolve"},
+        ]
+    }
     result = convert_file_result(data, "script.rpy")
     assert len(result["scenes"]) == 1
     assert isinstance(result["scenes"][0], SceneRef)
@@ -186,7 +206,7 @@ def test_convert_shows():
 
 
 def test_convert_images():
-    data = {"images": [{"name": "bg park", "line": 2, "value": "\"bg/park.png\""}]}
+    data = {"images": [{"name": "bg park", "line": 2, "value": '"bg/park.png"'}]}
     result = convert_file_result(data, "images.rpy")
     assert len(result["images"]) == 1
     assert isinstance(result["images"][0], ImageDef)
@@ -194,10 +214,12 @@ def test_convert_images():
 
 
 def test_convert_music():
-    data = {"music": [
-        {"path": "audio/bgm.ogg", "line": 5, "action": "play"},
-        {"path": "", "line": 20, "action": "stop"},
-    ]}
+    data = {
+        "music": [
+            {"path": "audio/bgm.ogg", "line": 5, "action": "play"},
+            {"path": "", "line": 20, "action": "stop"},
+        ]
+    }
     result = convert_file_result(data, "script.rpy")
     assert len(result["music"]) == 2
     assert isinstance(result["music"][0], MusicRef)
@@ -206,9 +228,11 @@ def test_convert_music():
 
 
 def test_convert_characters():
-    data = {"characters": [
-        {"shorthand": "mc", "display_name": "Alex", "line": 1},
-    ]}
+    data = {
+        "characters": [
+            {"shorthand": "mc", "display_name": "Alex", "line": 1},
+        ]
+    }
     result = convert_file_result(data, "chars.rpy")
     assert len(result["characters"]) == 1
     assert isinstance(result["characters"][0], CharacterDef)
@@ -235,9 +259,21 @@ def test_convert_conditions():
 def test_convert_empty_data():
     """Empty or missing keys should produce empty lists, not errors."""
     result = convert_file_result({}, "script.rpy")
-    for key in ["labels", "jumps", "calls", "dynamic_jumps", "variables",
-                "menus", "scenes", "shows", "images", "music",
-                "characters", "dialogue", "conditions"]:
+    for key in [
+        "labels",
+        "jumps",
+        "calls",
+        "dynamic_jumps",
+        "variables",
+        "menus",
+        "scenes",
+        "shows",
+        "images",
+        "music",
+        "characters",
+        "dialogue",
+        "conditions",
+    ]:
         assert result[key] == []
 
 
@@ -278,13 +314,16 @@ def test_convert_full_file():
 # parse_files_with_sdk — subprocess management (mocked)
 # ---------------------------------------------------------------------------
 
+
 def _make_response(results=None, errors=None, success=True, version="8.5.2"):
-    return json.dumps({
-        "success": success,
-        "version": version,
-        "results": results or {},
-        "errors": errors or [],
-    })
+    return json.dumps(
+        {
+            "success": success,
+            "version": version,
+            "results": results or {},
+            "errors": errors or [],
+        }
+    )
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -297,9 +336,18 @@ def test_parse_files_success(mock_run, mock_find_py, mock_find_worker):
     file_data = {
         "/game/script.rpy": {
             "labels": [{"name": "start", "line": 1}],
-            "jumps": [], "calls": [], "dynamic_jumps": [], "variables": [],
-            "menus": [], "scenes": [], "shows": [], "images": [],
-            "music": [], "characters": [], "dialogue": [], "conditions": [],
+            "jumps": [],
+            "calls": [],
+            "dynamic_jumps": [],
+            "variables": [],
+            "menus": [],
+            "scenes": [],
+            "shows": [],
+            "images": [],
+            "music": [],
+            "characters": [],
+            "dialogue": [],
+            "conditions": [],
         }
     }
     mock_run.return_value = MagicMock(
@@ -320,6 +368,7 @@ def test_parse_files_timeout(mock_run, mock_find_py, mock_find_worker):
     mock_find_py.return_value = "/sdk/lib/py3-linux/python"
     mock_find_worker.return_value = "/path/to/bridge_worker.py"
     import subprocess
+
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=120)
 
     with pytest.raises(RuntimeError, match="timed out"):

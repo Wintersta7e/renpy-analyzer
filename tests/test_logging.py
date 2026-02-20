@@ -64,10 +64,13 @@ def test_project_loader_logs_warning_on_bad_file(tmp_path, caplog, monkeypatch):
     game = tmp_path / "game"
     game.mkdir()
     # Write a valid file
-    (game / "good.rpy").write_text(textwrap.dedent("""\
+    (game / "good.rpy").write_text(
+        textwrap.dedent("""\
         label start:
             "Hello"
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     # Write a second file that we'll force to fail via monkeypatch
     (game / "bad.rpy").write_text("label broken:\n    jump x\n", encoding="utf-8")
 

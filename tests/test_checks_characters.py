@@ -1,4 +1,5 @@
 """Tests for characters check."""
+
 import textwrap
 
 from renpy_analyzer.checks.characters import check
@@ -14,13 +15,17 @@ def _project(tmp_path, defines, script):
 
 
 def test_undefined_speaker(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         define mc = Character("Player", color="#fff")
-    """, """\
+    """,
+        """\
         label start:
             mc "Hello"
             unknown "Who am I?"
-    """)
+    """,
+    )
     findings = check(model)
     undef = [f for f in findings if "Undefined" in f.title]
     assert len(undef) == 1
@@ -28,13 +33,17 @@ def test_undefined_speaker(tmp_path):
 
 
 def test_unused_character(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         define mc = Character("Player", color="#fff")
         define npc = Character("NPC", color="#aaa")
-    """, """\
+    """,
+        """\
         label start:
             mc "Hello"
-    """)
+    """,
+    )
     findings = check(model)
     unused = [f for f in findings if "Unused" in f.title]
     assert len(unused) == 1
@@ -42,12 +51,16 @@ def test_unused_character(tmp_path):
 
 
 def test_all_used_no_findings(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         define mc = Character("Player", color="#fff")
-    """, """\
+    """,
+        """\
         label start:
             mc "Hello"
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 0
 
@@ -55,6 +68,7 @@ def test_all_used_no_findings(tmp_path):
 def test_empty_model_returns_empty(tmp_path):
     """Characters check on empty model should return no findings."""
     from renpy_analyzer.models import ProjectModel
+
     model = ProjectModel(root_dir=str(tmp_path))
     findings = check(model)
     assert findings == []
@@ -62,15 +76,19 @@ def test_empty_model_returns_empty(tmp_path):
 
 def test_multiple_uses_of_undefined_speaker(tmp_path):
     """Undefined speaker used multiple times should mention other locations."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         define mc = Character("Player", color="#fff")
-    """, """\
+    """,
+        """\
         label start:
             unknown "First line"
             mc "Hello"
             unknown "Second line"
             unknown "Third line"
-    """)
+    """,
+    )
     findings = check(model)
     undef = [f for f in findings if "Undefined" in f.title and "unknown" in f.title]
     assert len(undef) == 1
@@ -79,12 +97,16 @@ def test_multiple_uses_of_undefined_speaker(tmp_path):
 
 def test_character_via_default(tmp_path):
     """Character defined via 'default' should also suppress undefined speaker."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         default npc = Character("NPC", color="#aaa")
-    """, """\
+    """,
+        """\
         label start:
             npc "Hello there"
-    """)
+    """,
+    )
     findings = check(model)
     undef = [f for f in findings if "Undefined" in f.title]
     assert len(undef) == 0
@@ -92,11 +114,15 @@ def test_character_via_default(tmp_path):
 
 def test_builtin_speakers_not_flagged(tmp_path):
     """Built-in speakers (centered, vcentered) should not be flagged as undefined."""
-    model = _project(tmp_path, "", """\
+    model = _project(
+        tmp_path,
+        "",
+        """\
         label start:
             centered "Chapter 1"
             vcentered "Centered text"
-    """)
+    """,
+    )
     findings = check(model)
     undef = [f for f in findings if "Undefined" in f.title]
     assert len(undef) == 0

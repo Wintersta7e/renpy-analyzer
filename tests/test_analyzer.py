@@ -17,20 +17,26 @@ def _make_project(tmp_path, script=""):
 
 
 def test_run_analysis_all_checks(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     findings = run_analysis(path)
     assert len(findings) >= 1
     assert any("nonexistent" in f.title for f in findings)
 
 
 def test_run_analysis_subset_of_checks(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     findings = run_analysis(path, checks=["Labels"])
     assert len(findings) >= 1
     # Only label-related findings
@@ -53,10 +59,13 @@ def test_run_analysis_progress_callback(tmp_path):
 
 
 def test_run_analysis_cancel(tmp_path):
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     # Cancel immediately — should return before running any checks
     findings = run_analysis(path, cancel_check=lambda: True)
     # No findings because cancelled before checks run
@@ -65,10 +74,13 @@ def test_run_analysis_cancel(tmp_path):
 
 def test_run_analysis_cancel_mid_run(tmp_path):
     """Cancel after the first check should return partial results."""
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
-    """)
+    """,
+    )
     call_count = 0
 
     def _cancel_after_first():
@@ -92,11 +104,14 @@ def test_run_analysis_empty_checks_list(tmp_path):
 
 def test_run_analysis_findings_sorted(tmp_path):
     """Findings should be sorted by severity (most severe first)."""
-    path = _make_project(tmp_path, """\
+    path = _make_project(
+        tmp_path,
+        """\
         label start:
             jump nonexistent
             $ Undeclared = True
-    """)
+    """,
+    )
     findings = run_analysis(path)
     if len(findings) >= 2:
         for i in range(len(findings) - 1):

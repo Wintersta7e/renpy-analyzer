@@ -25,7 +25,7 @@ def game_model():
 @pytest.fixture
 def all_findings(game_model):
     findings = []
-    for name, checker in ALL_CHECKS.items():
+    for _name, checker in ALL_CHECKS.items():
         findings.extend(checker(game_model))
     return findings
 
@@ -41,28 +41,24 @@ def test_labels_check_runs(all_findings):
 
 def test_precedence_bugs_detected(all_findings):
     """BUG_REVIEW: 13 operator precedence bugs across ch12, ch15, ch18."""
-    prec = [f for f in all_findings
-            if f.check_name == "logic" and f.severity == Severity.CRITICAL]
+    prec = [f for f in all_findings if f.check_name == "logic" and f.severity == Severity.CRITICAL]
     assert len(prec) >= 5
 
 
 def test_case_mismatch_detected(all_findings):
     """BUG_REVIEW: marysex4_Slow_3 case mismatch vs marysex4_slow_1/2."""
-    case_bugs = [f for f in all_findings
-                 if f.check_name == "variables" and "case mismatch" in f.title.lower()]
+    case_bugs = [f for f in all_findings if f.check_name == "variables" and "case mismatch" in f.title.lower()]
     assert any("marysex4_Slow_3" in f.title for f in case_bugs)
 
 
 def test_menu_fallthroughs_detected(all_findings):
     """BUG_REVIEW: 4 menu fallthroughs."""
-    ft = [f for f in all_findings
-          if f.check_name == "menus" and "fallthrough" in f.title.lower()]
+    ft = [f for f in all_findings if f.check_name == "menus" and "fallthrough" in f.title.lower()]
     assert len(ft) >= 1
 
 
 def test_undeclared_variable_detected(all_findings):
     """BUG_REVIEW: Temp1 undeclared."""
-    undecl = [f for f in all_findings
-              if f.check_name == "variables" and "Undeclared" in f.title]
+    undecl = [f for f in all_findings if f.check_name == "variables" and "Undeclared" in f.title]
     names = [f.title for f in undecl]
     assert any("Temp1" in n for n in names)

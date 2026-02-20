@@ -5,7 +5,7 @@ Reads a JSON request from stdin, uses the SDK's renpy.parser to parse
 .rpy files, walks the AST, and writes a JSON response to stdout.
 
 This file is STANDALONE — it must not import anything from renpy_analyzer.
-It must work with Python 3.9+ (SDK ships 3.9–3.12).
+It must work with Python 3.9+ (SDK ships 3.9-3.12).
 """
 
 import json
@@ -14,30 +14,19 @@ import re
 import sys
 import traceback
 
-
 # ---------------------------------------------------------------------------
 # Regex patterns for extracting assignments from Python blocks and
 # music/audio from UserStatement lines (same logic as regex parser).
 # ---------------------------------------------------------------------------
 
-RE_ASSIGN = re.compile(
-    r"^\s*(\w+)\s*(?:=|\+=|-=|\*=|/=|//=|%=|\*\*=|&=|\|=|\^=|<<=|>>=)\s*(.*)"
-)
-RE_AUGMENTED = re.compile(
-    r"^\s*(\w+)\s*(\+=|-=|\*=|/=|//=|%=|\*\*=|&=|\|=|\^=|<<=|>>=)\s*(.*)"
-)
-RE_PLAY = re.compile(
-    r'^\s*play\s+(music|sound|voice|audio)\s+"([^"]+)"', re.IGNORECASE
-)
-RE_QUEUE = re.compile(
-    r'^\s*queue\s+(music|sound)\s+"([^"]+)"', re.IGNORECASE
-)
+RE_ASSIGN = re.compile(r"^\s*(\w+)\s*(?:=|\+=|-=|\*=|/=|//=|%=|\*\*=|&=|\|=|\^=|<<=|>>=)\s*(.*)")
+RE_AUGMENTED = re.compile(r"^\s*(\w+)\s*(\+=|-=|\*=|/=|//=|%=|\*\*=|&=|\|=|\^=|<<=|>>=)\s*(.*)")
+RE_PLAY = re.compile(r'^\s*play\s+(music|sound|voice|audio)\s+"([^"]+)"', re.IGNORECASE)
+RE_QUEUE = re.compile(r'^\s*queue\s+(music|sound)\s+"([^"]+)"', re.IGNORECASE)
 RE_VOICE = re.compile(r'^\s*voice\s+"([^"]+)"', re.IGNORECASE)
 RE_STOP = re.compile(r"^\s*stop\s+(music|sound|voice|audio)", re.IGNORECASE)
 
-RE_CHARACTER = re.compile(
-    r"""Character\(\s*(?:_\(\s*)?["']([^"']+)["']""", re.IGNORECASE
-)
+RE_CHARACTER = re.compile(r"""Character\(\s*(?:_\(\s*)?["']([^"']+)["']""", re.IGNORECASE)
 
 
 def init_sdk(sdk_path, game_dir):
@@ -47,7 +36,7 @@ def init_sdk(sdk_path, game_dir):
     # Must set environment before importing renpy
     os.environ.setdefault("RENPY_NO_DISPLAY", "1")
 
-    import renpy  # noqa: E402
+    import renpy
 
     # renpy submodules (config, game, parser, etc.) are NOT loaded by
     # a bare "import renpy".  The SDK's import_all() loads them all.
@@ -59,9 +48,9 @@ def init_sdk(sdk_path, game_dir):
 
     # Mock the script object that PyCode.__init__ expects
     class FakeScript:
-        record_pycode = False
-        all_pycode = []
-        all_pyexpr = []
+        record_pycode: bool = False
+        all_pycode: list = []  # noqa: RUF012
+        all_pyexpr: list = []  # noqa: RUF012
 
     renpy.game.script = FakeScript()
 
@@ -71,9 +60,7 @@ def init_sdk(sdk_path, game_dir):
 def get_version(renpy):
     """Get Ren'Py version string."""
     try:
-        return getattr(renpy, "version_only", None) or str(
-            getattr(renpy, "version_tuple", "unknown")
-        )
+        return getattr(renpy, "version_only", None) or str(getattr(renpy, "version_tuple", "unknown"))
     except Exception:
         return "unknown"
 
@@ -133,9 +120,7 @@ def extract_from_node(node, renpy):
         target = getattr(node, "target", None)
         is_expr = getattr(node, "expression", False)
         if is_expr:
-            result["dynamic_jumps"].append(
-                {"expression": str(target or ""), "line": line}
-            )
+            result["dynamic_jumps"].append({"expression": str(target or ""), "line": line})
         elif target:
             result["jumps"].append({"target": target, "line": line})
 
@@ -143,9 +128,7 @@ def extract_from_node(node, renpy):
         target = getattr(node, "label", None)
         is_expr = getattr(node, "expression", False)
         if is_expr:
-            result["dynamic_jumps"].append(
-                {"expression": str(target or ""), "line": line}
-            )
+            result["dynamic_jumps"].append({"expression": str(target or ""), "line": line})
         elif target:
             result["calls"].append({"target": target, "line": line})
 
@@ -165,9 +148,7 @@ def extract_from_node(node, renpy):
             # imspec format varies; transition info may be at index 3
             if len(imspec) > 3 and imspec[3]:
                 transition = str(imspec[3])
-            result["scenes"].append(
-                {"image_name": image_name, "line": line, "transition": transition}
-            )
+            result["scenes"].append({"image_name": image_name, "line": line, "transition": transition})
 
     elif cls_name == "Show":
         imspec = getattr(node, "imspec", None)
@@ -197,9 +178,7 @@ def extract_from_node(node, renpy):
             else:
                 full_name = varname
 
-            result["variables"].append(
-                {"name": full_name, "line": line, "kind": kind, "value": source}
-            )
+            result["variables"].append({"name": full_name, "line": line, "kind": kind, "value": source})
 
             # Check if it's a Character definition
             char_match = RE_CHARACTER.search(source)
@@ -265,9 +244,7 @@ def extract_from_node(node, renpy):
                 choices.append(
                     {
                         "text": text,
-                        "line": getattr(item[2][0], "linenumber", line)
-                        if item[2]
-                        else line,
+                        "line": getattr(item[2][0], "linenumber", line) if item[2] else line,
                         "content_lines": content_lines,
                         "has_jump": has_jump,
                         "has_return": has_return,
@@ -296,30 +273,22 @@ def _extract_music(stmt_line, line_num, result):
     if m:
         kind = m.group(1).lower()
         action = kind if kind != "music" else "play"
-        result["music"].append(
-            {"path": m.group(2), "line": line_num, "action": action}
-        )
+        result["music"].append({"path": m.group(2), "line": line_num, "action": action})
         return
 
     m = RE_QUEUE.match(stmt_line)
     if m:
-        result["music"].append(
-            {"path": m.group(2), "line": line_num, "action": "queue"}
-        )
+        result["music"].append({"path": m.group(2), "line": line_num, "action": "queue"})
         return
 
     m = RE_VOICE.match(stmt_line)
     if m:
-        result["music"].append(
-            {"path": m.group(1), "line": line_num, "action": "voice"}
-        )
+        result["music"].append({"path": m.group(1), "line": line_num, "action": "voice"})
         return
 
     m = RE_STOP.match(stmt_line)
     if m:
-        result["music"].append(
-            {"path": "", "line": line_num, "action": "stop"}
-        )
+        result["music"].append({"path": "", "line": line_num, "action": "stop"})
 
 
 def merge_results(target, source):
@@ -332,9 +301,9 @@ def merge_results(target, source):
 def parse_file_with_sdk(renpy, filepath, game_dir):
     """Parse a single .rpy file using the SDK parser."""
     try:
-        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+        with open(filepath, encoding="utf-8", errors="replace") as f:
             filedata = f.read()
-    except (OSError, IOError) as exc:
+    except OSError as exc:
         return None, str(exc)
 
     try:
@@ -391,9 +360,7 @@ def main():
         json.dump(
             {
                 "success": False,
-                "errors": [
-                    {"file": "", "message": "SDK init failed: " + str(exc)}
-                ],
+                "errors": [{"file": "", "message": "SDK init failed: " + str(exc)}],
             },
             sys.stdout,
         )
@@ -409,7 +376,7 @@ def main():
         if error:
             errors.append({"file": filepath, "message": error})
             print(
-                "WARNING: Failed to parse {}: {}".format(filepath, error),
+                f"WARNING: Failed to parse {filepath}: {error}",
                 file=sys.stderr,
             )
         else:

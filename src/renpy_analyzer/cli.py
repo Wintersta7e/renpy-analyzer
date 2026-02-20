@@ -24,20 +24,29 @@ SEVERITY_COLORS: dict[Severity, str] = {
 @click.command()
 @click.argument("project_path", type=click.Path(exists=True))
 @click.option(
-    "--checks", "check_names", default=None,
+    "--checks",
+    "check_names",
+    default=None,
     help=f"Comma-separated check names (default: all). Available: {', '.join(ALL_CHECKS)}",
 )
 @click.option("--output", "-o", default=None, type=click.Path(), help="Export PDF report to this path.")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
 @click.option(
-    "--format", "fmt", type=click.Choice(["text", "json"]), default="text",
+    "--format",
+    "fmt",
+    type=click.Choice(["text", "json"]),
+    default="text",
     help="Output format (default: text).",
 )
 @click.option(
-    "--sdk-path", default=None, type=click.Path(exists=True),
+    "--sdk-path",
+    default=None,
+    type=click.Path(exists=True),
     help="Path to a Ren'Py SDK directory. Uses SDK's parser instead of regex.",
 )
-def analyze(project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_path: str | None) -> None:
+def analyze(
+    project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_path: str | None
+) -> None:
     """Analyze a Ren'Py project for bugs and issues."""
     setup_logging(verbose=verbose)
 
