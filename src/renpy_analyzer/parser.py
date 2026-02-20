@@ -50,12 +50,19 @@ RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
 
 RENPY_KEYWORDS = frozenset({
+    # Core Ren'Py statements
     "jump", "call", "return", "scene", "show", "hide", "with",
     "play", "stop", "queue", "voice", "define", "default", "init",
     "python", "label", "menu", "if", "elif", "else", "while", "for",
     "pass", "image", "transform", "screen", "style", "translate",
     "pause", "nvl", "window", "camera", "at", "extend", "narrator",
     "rpy",
+    # Screen language keywords (can appear as `keyword "string"`)
+    "add", "text", "textbutton", "key", "use",
+    "scrollbars", "layout", "id", "variant",
+    "style_prefix", "size_group", "thumb",
+    "color", "insensitive_color", "font",
+    "background", "foreground",
 })
 
 BUILTIN_IMAGES = frozenset({"black", "text", "vtext"})

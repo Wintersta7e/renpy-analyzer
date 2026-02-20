@@ -17,34 +17,32 @@ def check(project: ProjectModel) -> list[Finding]:
 
     defined_images: set[str] = set()
     for img in project.images:
-        defined_images.add(img.name)
+        defined_images.add(img.name.lower())
         first_word = img.name.split()[0] if " " in img.name else img.name
-        defined_images.add(first_word)
+        defined_images.add(first_word.lower())
 
     defined_images.update(BUILTIN_IMAGES)
 
-    # Scan game/images/ directory for file-based auto-detected images
-    # Ren'Py auto-registers images from files: game/images/bg/park.png -> image "bg park"
+    # Scan game/images/ directory for file-based auto-detected images.
+    # Ren'Py registers just the lowercased file stem as the image name
+    # (see renpy/common/00images.rpy _scan_images_directory).
     root = Path(project.root_dir)
     images_dir = root / "images"
     if images_dir.is_dir():
         try:
             for img_file in images_dir.rglob("*"):
                 if img_file.is_file() and img_file.suffix.lower() in (
-                    ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tga",
+                    ".png", ".jpg", ".jpeg", ".webp", ".avif", ".svg",
                 ):
-                    rel = img_file.relative_to(images_dir)
-                    name = " ".join(rel.with_suffix("").parts)
+                    name = img_file.stem.lower()
                     defined_images.add(name)
-                    # Also add just the tag (first word) for tag-based matching
-                    first_word = rel.with_suffix("").parts[0] if rel.parts else img_file.stem
-                    defined_images.add(first_word)
         except OSError:
             logger.warning("Cannot scan images directory %s", images_dir, exc_info=True)
 
     for scene in project.scenes:
-        tag = scene.image_name.split()[0] if " " in scene.image_name else scene.image_name
-        if scene.image_name not in defined_images and tag not in defined_images:
+        name_lower = scene.image_name.lower()
+        tag = name_lower.split()[0] if " " in name_lower else name_lower
+        if name_lower not in defined_images and tag not in defined_images:
             findings.append(Finding(
                 severity=Severity.MEDIUM,
                 check_name="assets",

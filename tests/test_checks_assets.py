@@ -63,16 +63,20 @@ def test_empty_model_returns_empty(tmp_path):
 
 
 def test_images_subdir_auto_detection(tmp_path):
-    """Files in game/images/ should be auto-registered as image definitions."""
+    """Files in game/images/ subdirectories register by lowercased stem only.
+
+    Ren'Py's _scan_images_directory uses only os.path.basename, so
+    images/Chapter 1/Foo/ch1_bar_1.webp -> image name 'ch1_bar_1'.
+    """
     game = tmp_path / "game"
     game.mkdir()
-    # Create image file in images/ subdirectory
-    images = game / "images" / "bg"
-    images.mkdir(parents=True)
-    (images / "park.png").write_bytes(b"fake png")
+    # Create image file in nested images/ subdirectory (real-world layout)
+    subdir = game / "images" / "Chapter 1" / "Scene1"
+    subdir.mkdir(parents=True)
+    (subdir / "ch1_scene1_1.webp").write_bytes(b"fake webp")
     (game / "script.rpy").write_text(textwrap.dedent("""\
         label start:
-            scene bg park with dissolve
+            scene ch1_scene1_1 with dissolve
     """), encoding="utf-8")
     model = load_project(str(tmp_path))
     findings = check(model)
