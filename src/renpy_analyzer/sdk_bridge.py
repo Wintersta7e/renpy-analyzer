@@ -23,7 +23,12 @@ from .models import (
     MenuChoice,
     MusicRef,
     SceneRef,
+    ScreenDef,
+    ScreenRef,
     ShowRef,
+    TransformDef,
+    TransformRef,
+    TranslationBlock,
     Variable,
 )
 
@@ -276,11 +281,40 @@ def convert_file_result(data: dict, filepath: str) -> dict:
         ]
 
     def _dialogue():
-        return [DialogueLine(speaker=d["speaker"], file=rel_path, line=d["line"]) for d in data.get("dialogue", [])]
+        return [
+            DialogueLine(speaker=d["speaker"], file=rel_path, line=d["line"], text=d.get("text", ""))
+            for d in data.get("dialogue", [])
+        ]
 
     def _conditions():
         return [
             Condition(expression=d["expression"], file=rel_path, line=d["line"]) for d in data.get("conditions", [])
+        ]
+
+    def _screen_defs():
+        return [ScreenDef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("screen_defs", [])]
+
+    def _screen_refs():
+        return [
+            ScreenRef(name=d["name"], file=rel_path, line=d["line"], action=d.get("action", "show"))
+            for d in data.get("screen_refs", [])
+        ]
+
+    def _transform_defs():
+        return [TransformDef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("transform_defs", [])]
+
+    def _transform_refs():
+        return [TransformRef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("transform_refs", [])]
+
+    def _translations():
+        return [
+            TranslationBlock(
+                language=d["language"],
+                string_id=d["string_id"],
+                file=rel_path,
+                line=d["line"],
+            )
+            for d in data.get("translations", [])
         ]
 
     return {
@@ -297,4 +331,9 @@ def convert_file_result(data: dict, filepath: str) -> dict:
         "characters": _characters(),
         "dialogue": _dialogue(),
         "conditions": _conditions(),
+        "screen_defs": _screen_defs(),
+        "screen_refs": _screen_refs(),
+        "transform_defs": _transform_defs(),
+        "transform_refs": _transform_refs(),
+        "translations": _translations(),
     }

@@ -114,6 +114,44 @@ class DialogueLine:
     speaker: str
     file: str
     line: int
+    text: str = ""
+
+
+@dataclass
+class ScreenDef:
+    name: str
+    file: str
+    line: int
+
+
+@dataclass
+class ScreenRef:
+    name: str
+    file: str
+    line: int
+    action: str  # "show", "call", "hide"
+
+
+@dataclass
+class TransformDef:
+    name: str
+    file: str
+    line: int
+
+
+@dataclass
+class TransformRef:
+    name: str
+    file: str
+    line: int
+
+
+@dataclass
+class TranslationBlock:
+    language: str
+    string_id: str
+    file: str
+    line: int
 
 
 @dataclass
@@ -153,3 +191,8 @@ class ProjectModel:
     characters: list[CharacterDef] = field(default_factory=list)
     dialogue: list[DialogueLine] = field(default_factory=list)
     conditions: list[Condition] = field(default_factory=list)
+    screen_defs: list[ScreenDef] = field(default_factory=list)
+    screen_refs: list[ScreenRef] = field(default_factory=list)
+    transform_defs: list[TransformDef] = field(default_factory=list)
+    transform_refs: list[TransformRef] = field(default_factory=list)
+    translations: list[TranslationBlock] = field(default_factory=list)

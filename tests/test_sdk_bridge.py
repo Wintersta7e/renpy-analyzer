@@ -273,6 +273,11 @@ def test_convert_empty_data():
         "characters",
         "dialogue",
         "conditions",
+        "screen_defs",
+        "screen_refs",
+        "transform_defs",
+        "transform_refs",
+        "translations",
     ]:
         assert result[key] == []
 

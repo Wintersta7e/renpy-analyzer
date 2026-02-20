@@ -18,7 +18,12 @@ from .models import (
     MenuChoice,
     MusicRef,
     SceneRef,
+    ScreenDef,
+    ScreenRef,
     ShowRef,
+    TransformDef,
+    TransformRef,
+    TranslationBlock,
     Variable,
 )
 
@@ -47,7 +52,13 @@ RE_MUSIC_QUEUE = re.compile(r'^\s+queue\s+(music|sound|voice|audio)\s+"([^"]+)"'
 RE_VOICE_STMT = re.compile(r'^\s+voice\s+"([^"]+)"')
 RE_MENU = re.compile(r"^(\s+)menu\s*:")
 RE_MENU_CHOICE = re.compile(r'^(\s+)"([^"]+)"(?:\s+if\s+(.+?))?\s*:')
-RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"')
+RE_SCREEN_DEF = re.compile(r"^screen\s+(\w+)")
+RE_SCREEN_REF = re.compile(r"^\s+(show|call|hide)\s+screen\s+(\w+)")
+RE_TRANSFORM_DEF = re.compile(r"^transform\s+(\w+)")
+RE_AT_TRANSFORM = re.compile(r"\bat\s+(\w+)")
+RE_TRANSLATE = re.compile(r"^translate\s+(\w+)\s+(\w+)\s*:")
+RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"((?:[^"\\]|\\.)*)"')
+RE_DIALOGUE_FALLBACK = re.compile(r'^(\s+)(\w+)\s+"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
 
@@ -138,6 +149,11 @@ def parse_file(filepath: str) -> dict:
     characters: list[CharacterDef] = []
     dialogue: list[DialogueLine] = []
     conditions: list[Condition] = []
+    screen_defs: list[ScreenDef] = []
+    screen_refs: list[ScreenRef] = []
+    transform_defs: list[TransformDef] = []
+    transform_refs: list[TransformRef] = []
+    translations: list[TranslationBlock] = []
 
     current_menu: Menu | None = None
     menu_indent: int = 0
@@ -183,6 +199,31 @@ def parse_file(filepath: str) -> dict:
                     elif stripped == "return":
                         current_choice.has_return = True
 
+        # --- Screen definition (column 0) ---
+        m = RE_SCREEN_DEF.match(line)
+        if m and indent == 0:
+            screen_defs.append(ScreenDef(name=m.group(1), file=display_path, line=lineno))
+            continue
+
+        # --- Transform definition (column 0) ---
+        m = RE_TRANSFORM_DEF.match(line)
+        if m and indent == 0:
+            transform_defs.append(TransformDef(name=m.group(1), file=display_path, line=lineno))
+            continue
+
+        # --- Translation block (column 0) ---
+        m = RE_TRANSLATE.match(line)
+        if m and indent == 0:
+            translations.append(
+                TranslationBlock(
+                    language=m.group(1),
+                    string_id=m.group(2),
+                    file=display_path,
+                    line=lineno,
+                )
+            )
+            continue
+
         # --- Label ---
         m = RE_LABEL.match(line)
         if m:
@@ -216,6 +257,19 @@ def parse_file(filepath: str) -> dict:
                     expression=m.group(1).strip(),
                     file=display_path,
                     line=lineno,
+                )
+            )
+            continue
+
+        # --- Screen reference (must be before Jump/Call/Show) ---
+        m = RE_SCREEN_REF.match(line)
+        if m:
+            screen_refs.append(
+                ScreenRef(
+                    name=m.group(2),
+                    file=display_path,
+                    line=lineno,
+                    action=m.group(1),
                 )
             )
             continue
@@ -349,6 +403,9 @@ def parse_file(filepath: str) -> dict:
                     transition=m.group(2),
                 )
             )
+            at_m = RE_AT_TRANSFORM.search(line)
+            if at_m:
+                transform_refs.append(TransformRef(name=at_m.group(1), file=display_path, line=lineno))
             continue
 
         # --- Show ---
@@ -361,6 +418,9 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                 )
             )
+            at_m = RE_AT_TRANSFORM.search(line)
+            if at_m:
+                transform_refs.append(TransformRef(name=at_m.group(1), file=display_path, line=lineno))
             continue
 
         # --- Music play ---
@@ -449,8 +509,21 @@ def parse_file(filepath: str) -> dict:
                         speaker=speaker,
                         file=display_path,
                         line=lineno,
+                        text=m.group(3),
                     )
                 )
+        else:
+            m = RE_DIALOGUE_FALLBACK.match(line)
+            if m:
+                speaker = m.group(2)
+                if speaker not in RENPY_KEYWORDS:
+                    dialogue.append(
+                        DialogueLine(
+                            speaker=speaker,
+                            file=display_path,
+                            line=lineno,
+                        )
+                    )
 
     # Finalize any in-progress menu at end of file
     if current_menu is not None:
@@ -472,4 +545,9 @@ def parse_file(filepath: str) -> dict:
         "characters": characters,
         "dialogue": dialogue,
         "conditions": conditions,
+        "screen_defs": screen_defs,
+        "screen_refs": screen_refs,
+        "transform_defs": transform_defs,
+        "transform_refs": transform_refs,
+        "translations": translations,
     }

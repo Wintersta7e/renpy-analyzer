@@ -320,6 +320,11 @@ def test_parse_empty_file(tmp_path):
     assert result["scenes"] == []
     assert result["characters"] == []
     assert result["dialogue"] == []
+    assert result["screen_defs"] == []
+    assert result["screen_refs"] == []
+    assert result["transform_defs"] == []
+    assert result["transform_refs"] == []
+    assert result["translations"] == []
 
 
 def test_parse_comment_only_file(tmp_path):

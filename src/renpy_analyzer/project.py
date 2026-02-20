@@ -25,6 +25,11 @@ _MODEL_KEYS = [
     "characters",
     "dialogue",
     "conditions",
+    "screen_defs",
+    "screen_refs",
+    "transform_defs",
+    "transform_refs",
+    "translations",
 ]
 
 

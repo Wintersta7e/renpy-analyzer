@@ -106,6 +106,11 @@ def extract_from_node(node, renpy):
         "characters": [],
         "dialogue": [],
         "conditions": [],
+        "screen_defs": [],
+        "screen_refs": [],
+        "transform_defs": [],
+        "transform_refs": [],
+        "translations": [],
     }
 
     line = getattr(node, "linenumber", 0)
@@ -138,7 +143,8 @@ def extract_from_node(node, renpy):
     elif cls_name == "Say":
         who = getattr(node, "who", None)
         if who:
-            result["dialogue"].append({"speaker": who, "line": line})
+            what = getattr(node, "what", "") or ""
+            result["dialogue"].append({"speaker": who, "line": line, "text": what})
 
     elif cls_name == "Scene":
         imspec = getattr(node, "imspec", None)
@@ -262,7 +268,51 @@ def extract_from_node(node, renpy):
                 cond = str(entry[0])
                 result["conditions"].append({"expression": cond, "line": line})
 
-    # Skip Screen, Transform, etc. — not in current model
+    elif cls_name == "Screen":
+        name = getattr(node, "name", None)
+        if name:
+            result["screen_defs"].append({"name": name, "line": line})
+
+    elif cls_name == "ShowScreen":
+        name = getattr(node, "screen_name", None) or getattr(node, "name", None)
+        if isinstance(name, (list, tuple)):
+            name = name[0] if name else None
+        if name:
+            result["screen_refs"].append({"name": str(name), "line": line, "action": "show"})
+
+    elif cls_name == "CallScreen":
+        name = getattr(node, "screen_name", None) or getattr(node, "name", None)
+        if isinstance(name, (list, tuple)):
+            name = name[0] if name else None
+        if name:
+            result["screen_refs"].append({"name": str(name), "line": line, "action": "call"})
+
+    elif cls_name == "HideScreen":
+        name = getattr(node, "screen_name", None) or getattr(node, "name", None)
+        if isinstance(name, (list, tuple)):
+            name = name[0] if name else None
+        if name:
+            result["screen_refs"].append({"name": str(name), "line": line, "action": "hide"})
+
+    elif cls_name == "Transform":
+        name = getattr(node, "varname", None)
+        if name:
+            result["transform_defs"].append({"name": name, "line": line})
+
+    elif cls_name == "Translate":
+        language = getattr(node, "language", None)
+        identifier = getattr(node, "identifier", None)
+        if language and identifier:
+            result["translations"].append({"language": language, "string_id": identifier, "line": line})
+
+    # Extract transform refs from Show/Scene 'at' clauses
+    if cls_name in ("Show", "Scene"):
+        imspec = getattr(node, "imspec", None)
+        if imspec and len(imspec) > 2 and imspec[2]:
+            # imspec[2] is the at_list (list of transform names)
+            for t in imspec[2]:
+                if isinstance(t, str):
+                    result["transform_refs"].append({"name": t, "line": line})
 
     return result
 
@@ -328,6 +378,11 @@ def parse_file_with_sdk(renpy, filepath, game_dir):
         "characters": [],
         "dialogue": [],
         "conditions": [],
+        "screen_defs": [],
+        "screen_refs": [],
+        "transform_defs": [],
+        "transform_refs": [],
+        "translations": [],
     }
 
     for top_node in ast_nodes:

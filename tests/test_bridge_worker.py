@@ -144,7 +144,7 @@ class TestExtractFromNode:
         node = _mock_node("Say", who="mc", what="Hello", linenumber=20)
         result = extract_from_node(node, None)
         assert len(result["dialogue"]) == 1
-        assert result["dialogue"][0] == {"speaker": "mc", "line": 20}
+        assert result["dialogue"][0] == {"speaker": "mc", "line": 20, "text": "Hello"}
 
     def test_say_narrator(self):
         """Narrator lines (who=None) should not produce dialogue entries."""
@@ -271,7 +271,7 @@ class TestExtractFromNode:
             assert result[key] == []
 
     def test_unknown_node_produces_nothing(self):
-        node = _mock_node("Screen", linenumber=1)
+        node = _mock_node("SomeUnknownNodeType", linenumber=1)
         result = extract_from_node(node, None)
         for key in result:
             assert result[key] == []
