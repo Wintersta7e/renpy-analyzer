@@ -14,6 +14,9 @@ a = Analysis(
     binaries=[],
     datas=[
         (ctk_path, 'customtkinter'),
+        # bridge_worker.py must be bundled as a readable .py file (not compiled)
+        # because the SDK's Python needs to execute it as a standalone script.
+        (os.path.join('src', 'renpy_analyzer', 'bridge_worker.py'), '.'),
     ],
     hiddenimports=[
         'renpy_analyzer',
@@ -28,6 +31,8 @@ a = Analysis(
         'renpy_analyzer.checks.menus',
         'renpy_analyzer.checks.assets',
         'renpy_analyzer.checks.characters',
+        'renpy_analyzer.checks.flow',
+        'renpy_analyzer.sdk_bridge',
         'renpy_analyzer.report',
         'renpy_analyzer.report.pdf',
         'PIL',

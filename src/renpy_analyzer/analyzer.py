@@ -17,6 +17,7 @@ def run_analysis(
     checks: list[str] | None = None,
     on_progress: Callable[[str, float], None] | None = None,
     cancel_check: Callable[[], bool] | None = None,
+    sdk_path: str | None = None,
 ) -> list[Finding]:
     """Run analysis on a Ren'Py project and return sorted findings.
 
@@ -55,9 +56,10 @@ def run_analysis(
     def _cancelled() -> bool:
         return cancel_check is not None and cancel_check()
 
-    _progress("Parsing project files...", 0.0)
-    project = load_project(project_path)
-    _progress(f"Parsed {len(project.files)} .rpy files.", 0.1)
+    parser_label = "SDK" if sdk_path else "regex"
+    _progress(f"Parsing project files ({parser_label} parser)...", 0.0)
+    project = load_project(project_path, sdk_path=sdk_path)
+    _progress(f"Parsed {len(project.files)} .rpy files ({parser_label} parser).", 0.1)
 
     total = len(checks)
     findings: list[Finding] = []

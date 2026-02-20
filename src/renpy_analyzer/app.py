@@ -17,6 +17,7 @@ from .checks import ALL_CHECKS
 from .log import setup_logging
 from .models import Finding, Severity
 from .report.pdf import generate_pdf
+from .sdk_bridge import validate_sdk_path
 
 logger = logging.getLogger("renpy_analyzer.app")
 
@@ -55,6 +56,8 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # State
         self._path_var = StringVar(value="")
+        self._sdk_path_var = StringVar(value="")
+        self._sdk_note = StringVar(value="")
         self._check_vars: dict[str, BooleanVar] = {}
         self._findings: list[Finding] = []
         self._analysis_thread: threading.Thread | None = None
@@ -104,6 +107,28 @@ class RenpyAnalyzerApp(ctk.CTk):
         ctk.CTkLabel(
             top, textvariable=self._game_dir_note,
             font=ctk.CTkFont(size=11), text_color="#28A745",
+        ).pack(fill="x", padx=35, pady=(0, 2))
+
+        # SDK Path selector (optional)
+        sdk_frame = ctk.CTkFrame(top)
+        sdk_frame.pack(fill="x", padx=20, pady=(2, 0))
+        ctk.CTkLabel(
+            sdk_frame, text="SDK Path:", font=ctk.CTkFont(size=13),
+        ).pack(side="left", padx=(10, 5), pady=10)
+        self._sdk_entry = ctk.CTkEntry(
+            sdk_frame, textvariable=self._sdk_path_var,
+            placeholder_text="(Optional) Select Ren'Py SDK folder for accurate parsing...",
+            width=500,
+        )
+        self._sdk_entry.pack(side="left", fill="x", expand=True, padx=5, pady=10)
+        ctk.CTkButton(
+            sdk_frame, text="Browse...", width=100, command=self._browse_sdk,
+        ).pack(side="right", padx=(5, 10), pady=10)
+
+        # SDK validation note
+        ctk.CTkLabel(
+            top, textvariable=self._sdk_note,
+            font=ctk.CTkFont(size=11),
         ).pack(fill="x", padx=35, pady=(0, 2))
 
         # Check toggles
@@ -210,6 +235,30 @@ class RenpyAnalyzerApp(ctk.CTk):
             else:
                 self._game_dir_note.set("")
 
+    def _browse_sdk(self) -> None:
+        folder = filedialog.askdirectory(title="Select Ren'Py SDK Folder")
+        if folder:
+            self._sdk_path_var.set(folder)
+            if validate_sdk_path(folder):
+                self._sdk_note.set("Valid SDK detected — will use SDK parser.")
+                self._sdk_note_label_color("#28A745")
+            else:
+                self._sdk_note.set("Invalid SDK path — missing renpy/ or Python binary.")
+                self._sdk_note_label_color("#DC3545")
+
+    def _sdk_note_label_color(self, color: str) -> None:
+        """Update the SDK note label color."""
+        for widget in self.winfo_children():
+            # Walk the top frame to find the sdk_note label
+            for child in widget.winfo_children():
+                if isinstance(child, ctk.CTkLabel):
+                    try:
+                        if child.cget("textvariable") is self._sdk_note:
+                            child.configure(text_color=color)
+                            return
+                    except Exception:
+                        pass
+
     def _start_analysis(self) -> None:
         project_path = self._path_var.get().strip()
         if not project_path:
@@ -249,12 +298,14 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._analysis_thread.start()
 
     def _run_analysis(self, project_path: str, enabled_checks: list[str]) -> None:
+        sdk_path = self._sdk_path_var.get().strip() or None
         try:
             findings = run_analysis(
                 project_path,
                 checks=enabled_checks,
                 on_progress=lambda msg, frac: self.after(0, self._update_progress, msg, frac),
                 cancel_check=self._cancel_event.is_set,
+                sdk_path=sdk_path,
             )
 
             if self._cancel_event.is_set():
@@ -305,10 +356,11 @@ class RenpyAnalyzerApp(ctk.CTk):
         # Populate text widget
         self._populate_results(findings)
 
+        parser_label = "(SDK parser)" if self._sdk_path_var.get().strip() else "(regex parser)"
         if total == 0:
-            self._status_var.set("Analysis complete — no issues found!")
+            self._status_var.set(f"Analysis complete {parser_label} — no issues found!")
         else:
-            self._status_var.set(f"Analysis complete — {total} finding(s).")
+            self._status_var.set(f"Analysis complete {parser_label} — {total} finding(s).")
 
     def _request_cancel(self) -> None:
         self._cancel_event.set()

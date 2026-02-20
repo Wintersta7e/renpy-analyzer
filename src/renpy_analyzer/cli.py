@@ -33,7 +33,11 @@ SEVERITY_COLORS: dict[Severity, str] = {
     "--format", "fmt", type=click.Choice(["text", "json"]), default="text",
     help="Output format (default: text).",
 )
-def analyze(project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str) -> None:
+@click.option(
+    "--sdk-path", default=None, type=click.Path(exists=True),
+    help="Path to a Ren'Py SDK directory. Uses SDK's parser instead of regex.",
+)
+def analyze(project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_path: str | None) -> None:
     """Analyze a Ren'Py project for bugs and issues."""
     setup_logging(verbose=verbose)
 
@@ -46,9 +50,13 @@ def analyze(project_path: str, check_names: str | None, output: str | None, verb
             project_path,
             checks=checks,
             on_progress=lambda msg, _frac: (click.echo(msg, err=True) if verbose else None),
+            sdk_path=sdk_path,
         )
     except ValueError as exc:
         click.echo(f"Error: {exc}", err=True)
+        sys.exit(2)
+    except RuntimeError as exc:
+        click.echo(f"SDK error: {exc}", err=True)
         sys.exit(2)
     except Exception as exc:
         click.echo(f"Error: {exc}", err=True)
