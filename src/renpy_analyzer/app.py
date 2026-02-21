@@ -64,11 +64,11 @@ _CHECK_LABELS: dict[str, str] = {
 
 # Treeview column definitions: (id, heading, width, stretch, anchor)
 _TREE_COLUMNS = [
-    ("severity", "Severity", 90, False, "center"),
-    ("check", "Check", 120, False, "w"),
-    ("description", "Description", 400, True, "w"),
-    ("file", "File", 220, True, "w"),
-    ("line", "Line", 60, False, "center"),
+    ("severity", "Severity", 100, False, "center"),
+    ("check", "Check", 140, False, "w"),
+    ("description", "Description", 420, True, "w"),
+    ("file", "File", 240, True, "w"),
+    ("line", "Line", 65, False, "center"),
 ]
 
 
@@ -236,7 +236,7 @@ class RenpyAnalyzerApp(ctk.CTk):
                 panel,
                 text=_CHECK_LABELS.get(name, name),
                 variable=var,
-                font=ctk.CTkFont(size=11),
+                font=ctk.CTkFont(size=12),
                 fg_color=ACCENT_BLUE,
                 border_color=PANEL_BORDER,
                 hover_color=PANEL_LIGHTER,
@@ -270,8 +270,8 @@ class RenpyAnalyzerApp(ctk.CTk):
             btn = ctk.CTkButton(
                 bar,
                 text=f"{sev.name} (0)",
-                width=100, height=28,
-                font=ctk.CTkFont(size=11),
+                width=110, height=32,
+                font=ctk.CTkFont(size=12),
                 fg_color=color if self._severity_active[sev] else PANEL_LIGHTER,
                 hover_color=PANEL_BORDER,
                 text_color="#FFFFFF" if self._severity_active[sev] else TEXT_DIM,
@@ -282,8 +282,8 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Export PDF button
         self._export_btn = ctk.CTkButton(
-            bar, text="Export PDF", width=100, height=28,
-            font=ctk.CTkFont(size=11), fg_color=PANEL_LIGHTER,
+            bar, text="Export PDF", width=110, height=32,
+            font=ctk.CTkFont(size=12), fg_color=PANEL_LIGHTER,
             hover_color=PANEL_BORDER, text_color=TEXT_PRIMARY,
             state="disabled", command=self._export_pdf,
         )
@@ -354,28 +354,28 @@ class RenpyAnalyzerApp(ctk.CTk):
 
     def _build_detail_panel(self) -> None:
         """Row 5: Selected finding detail."""
-        self._detail_frame = ctk.CTkFrame(self, fg_color=PANEL_BG, corner_radius=8, height=90)
+        self._detail_frame = ctk.CTkFrame(self, fg_color=PANEL_BG, corner_radius=8, height=100)
         self._detail_frame.grid(row=5, column=0, sticky="ew", padx=20, pady=(8, 0))
         self._detail_frame.grid_propagate(False)
         self._detail_frame.grid_columnconfigure(0, weight=1)
 
         self._detail_title = ctk.CTkLabel(
             self._detail_frame, text="Select a finding to see details",
-            font=ctk.CTkFont(size=12, weight="bold"), text_color=TEXT_DIM,
+            font=ctk.CTkFont(size=13, weight="bold"), text_color=TEXT_DIM,
             anchor="w",
         )
         self._detail_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 0))
 
         self._detail_desc = ctk.CTkLabel(
             self._detail_frame, text="",
-            font=ctk.CTkFont(size=11), text_color=TEXT_PRIMARY,
+            font=ctk.CTkFont(size=12), text_color=TEXT_PRIMARY,
             anchor="w", wraplength=750, justify="left",
         )
         self._detail_desc.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 0))
 
         self._detail_suggestion = ctk.CTkLabel(
             self._detail_frame, text="",
-            font=ctk.CTkFont(size=11), text_color="#28A745",
+            font=ctk.CTkFont(size=12), text_color="#28A745",
             anchor="w", wraplength=750, justify="left",
         )
         self._detail_suggestion.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 8))
@@ -415,15 +415,15 @@ class RenpyAnalyzerApp(ctk.CTk):
             foreground=TEXT_PRIMARY,
             fieldbackground=PANEL_BG,
             borderwidth=0,
-            font=("Segoe UI", 10),
-            rowheight=24,
+            font=("Segoe UI", 12),
+            rowheight=28,
         )
         style.configure(
             "Treeview.Heading",
             background=PANEL_LIGHTER,
             foreground=TEXT_PRIMARY,
             borderwidth=0,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 12, "bold"),
         )
         style.map(
             "Treeview",
