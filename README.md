@@ -41,7 +41,7 @@ Ren'Py Analyzer statically analyzes `.rpy` script files and detects common bugs 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/renpy-analyzer.git
+git clone https://github.com/Wintersta7e/renpy-analyzer.git
 cd renpy-analyzer
 
 # Install in development mode

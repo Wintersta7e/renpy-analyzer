@@ -19,3 +19,9 @@ build_helper.py
 .claude
 CLAUDE.md
 .worktrees/
+
+# Internal working files (not for public repo)
+PLAN-*.md
+ISSUES.md
+TESTING-*.md
+Screenshot*.png
