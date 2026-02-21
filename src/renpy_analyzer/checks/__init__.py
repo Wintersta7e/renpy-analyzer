@@ -3,7 +3,11 @@
 Each module exports a check(project) -> list[Finding] function.
 """
 
-from . import assets, characters, flow, labels, logic, menus, screens, texttags, transforms, translations, variables
+from . import (
+    assets, callcycle, callreturn, characters, emptylabels, flow,
+    labels, logic, menus, persistent, screens, texttags, transforms,
+    translations, variables,
+)
 
 ALL_CHECKS = {
     "Labels": labels.check,
@@ -17,4 +21,8 @@ ALL_CHECKS = {
     "Transforms": transforms.check,
     "Translations": translations.check,
     "Text Tags": texttags.check,
+    "Call Safety": callreturn.check,
+    "Call Cycles": callcycle.check,
+    "Empty Labels": emptylabels.check,
+    "Persistent Vars": persistent.check,
 }

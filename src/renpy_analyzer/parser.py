@@ -36,8 +36,8 @@ RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
 RE_CALL = re.compile(r"^\s+call\s+(\w+)")
 RE_DEFAULT = re.compile(r"^\s*default\s+([\w.]+)\s*=\s*(.+)")
 RE_DEFINE = re.compile(r"^\s*define\s+([\w.]+)\s*=\s*(.+)")
-RE_ASSIGN = re.compile(r"^\s*\$\s+(\w+)\s*=\s*(.+)")
-RE_AUGMENT = re.compile(r"^\s*\$\s+(\w+)\s*[+\-*/]=\s*(.+)")
+RE_ASSIGN = re.compile(r"^\s*\$\s+([\w.]+)\s*=\s*(.+)")
+RE_AUGMENT = re.compile(r"^\s*\$\s+([\w.]+)\s*[+\-*/]=\s*(.+)")
 RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
 RE_SCENE = re.compile(
     r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?"
