@@ -315,9 +315,9 @@ class RenpyAnalyzerApp(ctk.CTk):
         for col_id, heading, width, stretch, anchor in _TREE_COLUMNS:
             self._tree.heading(
                 col_id, text=heading,
-                command=lambda c=col_id: self._sort_by_column(c),
+                command=lambda c=col_id: self._sort_by_column(c),  # type: ignore[misc]
             )
-            self._tree.column(col_id, width=width, stretch=stretch, anchor=anchor)
+            self._tree.column(col_id, width=width, stretch=stretch, anchor=anchor)  # type: ignore[call-overload]
 
         self._tree.grid(row=0, column=0, sticky="nsew")
 

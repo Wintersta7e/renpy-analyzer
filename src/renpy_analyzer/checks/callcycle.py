@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterator
 
 from ..models import Finding, ProjectModel, Severity
 
@@ -55,13 +56,13 @@ def check(project: ProjectModel) -> list[Finding]:
             continue
         parent[label_name] = None
         color[label_name] = GRAY
-        stack: list[tuple[str, iter]] = [
+        stack: list[tuple[str, Iterator[str]]] = [
             (label_name, iter(sorted(call_graph.get(label_name, set()))))
         ]
         while stack:
             node, neighbors = stack[-1]
             try:
-                neighbor = next(neighbors)
+                neighbor: str = next(neighbors)
             except StopIteration:
                 color[node] = BLACK
                 stack.pop()

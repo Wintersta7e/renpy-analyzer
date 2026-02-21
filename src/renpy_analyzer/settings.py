@@ -91,7 +91,7 @@ class Settings:
                 logger.warning("Settings file has invalid format, using defaults")
                 return cls()
             # Filter to known fields with correct types (forward-compatible)
-            filtered = {}
+            filtered: dict[str, object] = {}
             for k, v in data.items():
                 if k in _KNOWN_FIELDS:
                     expected = _FIELD_TYPES[k]
@@ -101,7 +101,7 @@ class Settings:
                             filtered[k] = v
                     elif isinstance(v, expected):
                         filtered[k] = v
-            return cls(**filtered)
+            return cls(**filtered)  # type: ignore[arg-type]
         except json.JSONDecodeError:
             logger.warning("Settings file is corrupted, using defaults: %s", _config_path() / _SETTINGS_FILE)
             return cls()

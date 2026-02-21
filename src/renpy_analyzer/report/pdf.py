@@ -129,7 +129,7 @@ def _safe(text: str) -> str:
 
 def _tw(text: str, font: str, size: float) -> float:
     """Text width in points."""
-    return stringWidth(_safe(text), font, size)
+    return float(stringWidth(_safe(text), font, size))
 
 
 def _wrap(text: str, max_w: float, font: str, size: float) -> list[str]:
@@ -293,7 +293,7 @@ def _measure_table_row(g: _GroupedFinding) -> float:
 class _PDFBuilder:
     """Manages page creation, cursor tracking, and content rendering."""
 
-    def __init__(self, output_path: str, game_name: str, game_path: str) -> None:
+    def __init__(self, output_path: str | io.BytesIO, game_name: str, game_path: str) -> None:
         self.c = Canvas(output_path, pagesize=(_PAGE_W, _PAGE_H))
         self.game_name = game_name
         self.game_path = game_path
