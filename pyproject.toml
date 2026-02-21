@@ -12,6 +12,7 @@ dependencies = [
     "PyMuPDF>=1.23",
     "Pillow>=10.0",
     "click>=8.0",
+    "platformdirs>=3.0",
 ]
 
 [project.optional-dependencies]
