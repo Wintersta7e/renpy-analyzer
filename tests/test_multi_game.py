@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from renpy_analyzer.analyzer import run_analysis
-from renpy_analyzer.project import detect_sub_games, load_project
+from renpy_analyzer.project import detect_sub_games
 
 
 def _make_game_dir(path, rpy_content="label start:\n    return\n"):

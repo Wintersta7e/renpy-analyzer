@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import threading
@@ -547,10 +548,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         except Exception as exc:
             logger.exception("Analysis failed")
             error_msg = str(exc) or f"{type(exc).__name__}: (no details available)"
-            try:
+            with contextlib.suppress(Exception):
                 self.after(0, self._analysis_failed, error_msg)
-            except Exception:
-                pass  # App shutting down — error already logged above
 
     # -----------------------------------------------------------------------
     # GUI callbacks
@@ -754,17 +753,13 @@ class RenpyAnalyzerApp(ctk.CTk):
                 game_path=project_path,
             )
             logger.info("PDF exported to %s", output_path)
-            try:
+            with contextlib.suppress(Exception):
                 self.after(0, self._pdf_export_done, output_path, None)
-            except Exception:
-                pass  # App shutting down
         except Exception as exc:
             logger.exception("PDF export failed")
             error_msg = str(exc) or f"{type(exc).__name__}: (no details available)"
-            try:
+            with contextlib.suppress(Exception):
                 self.after(0, self._pdf_export_done, output_path, error_msg)
-            except Exception:
-                pass  # App shutting down — error already logged
 
     def _pdf_export_done(self, output_path: str, error: str | None) -> None:
         self._export_btn.configure(state="normal")

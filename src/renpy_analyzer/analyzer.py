@@ -159,8 +159,8 @@ def _run_multi_game_analysis(
         base_frac = sub_idx / total_sub
         next_frac = (sub_idx + 1) / total_sub
 
-        def _sub_progress(msg: str, frac: float, _base=base_frac, _span=next_frac - base_frac) -> None:
-            _progress(f"[{sub_name}] {msg}", _base + frac * _span)
+        def _sub_progress(msg: str, frac: float, _base=base_frac, _span=next_frac - base_frac, _name=sub_name) -> None:
+            _progress(f"[{_name}] {msg}", _base + frac * _span)
 
         sub_findings = _run_single_analysis(
             sub_path, checks, _sub_progress, _cancelled, sdk_path,

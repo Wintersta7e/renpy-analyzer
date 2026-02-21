@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -70,12 +71,10 @@ class Settings:
                     f.write(payload)
                 os.replace(tmp, filepath)
             except Exception:
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(tmp)
-                except OSError:
-                    pass
                 raise
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             logger.warning("Failed to save settings: %s", exc)
         except Exception:
             logger.warning("Unexpected error saving settings", exc_info=True)
@@ -106,7 +105,7 @@ class Settings:
         except json.JSONDecodeError:
             logger.warning("Settings file is corrupted, using defaults: %s", _config_path() / _SETTINGS_FILE)
             return cls()
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             logger.warning("Cannot read settings file: %s", exc)
             return cls()
         except Exception:

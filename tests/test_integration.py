@@ -4,6 +4,7 @@ Validates that all known bugs from BUG_REVIEW.md are detected.
 Skip if test game is not available.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,6 @@ import pytest
 from renpy_analyzer.checks import ALL_CHECKS
 from renpy_analyzer.models import Severity
 from renpy_analyzer.project import load_project
-
-import os
 
 TEST_GAME = os.environ.get("RENPY_TEST_GAME", "/tmp/renpy-test-game")
 

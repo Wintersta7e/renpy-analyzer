@@ -2,7 +2,7 @@
 
 import json
 
-from renpy_analyzer.settings import Settings, _SETTINGS_FILE
+from renpy_analyzer.settings import _SETTINGS_FILE, Settings
 
 
 def test_settings_round_trip(tmp_path, monkeypatch):

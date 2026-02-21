@@ -4,9 +4,21 @@ Each module exports a check(project) -> list[Finding] function.
 """
 
 from . import (
-    assets, callcycle, callreturn, characters, emptylabels, flow,
-    labels, logic, menus, persistent, screens, texttags, transforms,
-    translations, variables,
+    assets,
+    callcycle,
+    callreturn,
+    characters,
+    emptylabels,
+    flow,
+    labels,
+    logic,
+    menus,
+    persistent,
+    screens,
+    texttags,
+    transforms,
+    translations,
+    variables,
 )
 
 ALL_CHECKS = {

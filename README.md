@@ -2,6 +2,7 @@
 
 A desktop GUI tool that scans [Ren'Py](https://www.renpy.org/) visual novel projects for bugs and generates styled PDF reports.
 
+[![CI](https://github.com/Wintersta7e/renpy-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Wintersta7e/renpy-analyzer/actions/workflows/ci.yml)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 

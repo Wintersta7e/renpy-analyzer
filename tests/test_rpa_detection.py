@@ -3,16 +3,15 @@
 from renpy_analyzer.checks.assets import check as assets_check
 from renpy_analyzer.checks.labels import check as labels_check
 from renpy_analyzer.models import (
+    Call,
     ImageDef,
     Jump,
-    Call,
     Label,
     MusicRef,
     ProjectModel,
     SceneRef,
     Severity,
 )
-
 
 # ---------------------------------------------------------------------------
 # ProjectModel.has_rpa default

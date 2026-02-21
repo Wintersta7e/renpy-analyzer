@@ -6,7 +6,7 @@ import os
 import tempfile
 
 from renpy_analyzer.analyzer import run_analysis
-from renpy_analyzer.models import Finding, ProjectModel, Severity
+from renpy_analyzer.models import ProjectModel, Severity
 
 
 class TestRpycOnlyDetection:

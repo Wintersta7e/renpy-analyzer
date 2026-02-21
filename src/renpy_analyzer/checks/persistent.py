@@ -31,9 +31,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 reads[full_name] = (cond.file, cond.line)
 
     for var in project.variables:
-        if var.kind == "augment" and var.name.startswith("persistent."):
-            if var.name not in reads:
-                reads[var.name] = (var.file, var.line)
+        if var.kind == "augment" and var.name.startswith("persistent.") and var.name not in reads:
+            reads[var.name] = (var.file, var.line)
 
     # Step 3: Find reads without defaults
     for name, (file, line) in sorted(reads.items()):
