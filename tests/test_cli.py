@@ -41,6 +41,8 @@ def test_cli_findings_exit_1(tmp_path):
     result = CliRunner().invoke(analyze, [path])
     assert result.exit_code == 1
     assert "nonexistent" in result.output
+    assert "=== Ren'Py Analyzer Results ===" in result.output
+    assert "-- CRITICAL" in result.output or "-- HIGH" in result.output
 
 
 def test_cli_checks_filter(tmp_path):
@@ -95,3 +97,42 @@ def test_cli_pdf_export(tmp_path):
     # Verify it's a valid PDF (magic bytes)
     with open(pdf_path, "rb") as f:
         assert f.read(5) == b"%PDF-"
+
+
+def test_cli_text_severity_sections(tmp_path):
+    """Severity section headers appear in output."""
+    path = _make_project(
+        tmp_path,
+        """\
+        label start:
+            jump nonexistent
+            $ x = undefined_var
+    """,
+    )
+    result = CliRunner().invoke(analyze, [path])
+    assert result.exit_code == 1
+    # Should have the results banner and at least one severity section
+    assert "=== Ren'Py Analyzer Results ===" in result.output
+    assert "unique)" in result.output
+    # At least one severity section header present
+    has_section = any(f"-- {s.name}" in result.output for s in __import__("renpy_analyzer.models", fromlist=["Severity"]).Severity)
+    assert has_section
+
+
+def test_cli_text_grouped_findings(tmp_path):
+    """Duplicate findings are grouped and show location count."""
+    # Two jumps to same nonexistent label → same title, two locations
+    path = _make_project(
+        tmp_path,
+        """\
+        label start:
+            jump nonexistent
+        label other:
+            jump nonexistent
+    """,
+    )
+    result = CliRunner().invoke(analyze, [path])
+    assert result.exit_code == 1
+    # Grouped: should show "locations" for the duplicate finding
+    assert "2 locations" in result.output
+    assert "unique)" in result.output
