@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 
 from .checks import ALL_CHECKS
-from .models import Finding
+from .models import Finding, Severity
 from .project import load_project
 
 logger = logging.getLogger("renpy_analyzer.analyzer")
@@ -75,6 +75,47 @@ def run_analysis(
     if _cancelled():
         logger.info("Analysis cancelled by caller")
         return findings
+
+    if project.has_rpyc_only:
+        findings.insert(
+            0,
+            Finding(
+                severity=Severity.MEDIUM,
+                check_name="project",
+                title="No .rpy source files found",
+                description=(
+                    "This game contains only compiled .rpyc files with no .rpy source code. "
+                    "The analyzer requires .rpy source files to detect issues. "
+                    "The game may work correctly but cannot be analyzed."
+                ),
+                file="",
+                line=0,
+                suggestion="Look for an uncompiled version of the game, or use the Ren'Py SDK to decompile .rpyc files.",
+            ),
+        )
+
+    # Warn if the selected directory contains multiple separate game projects
+    if project.multi_game_dirs:
+        dirs = project.multi_game_dirs
+        dir_list = ", ".join(dirs[:5]) + ("..." if len(dirs) > 5 else "")
+        findings.insert(
+            0,
+            Finding(
+                severity=Severity.MEDIUM,
+                check_name="project",
+                title="Multiple game projects detected",
+                description=(
+                    f"The selected directory contains {len(dirs)} separate game projects: "
+                    f"{dir_list}. "
+                    f"Analyzing them together may produce false positives "
+                    f"(duplicate labels, cross-project references). "
+                    f"For accurate results, point the analyzer at a single game directory."
+                ),
+                file="",
+                line=0,
+                suggestion="Select a specific game subdirectory instead of the parent folder.",
+            ),
+        )
 
     findings.sort(key=lambda f: f.severity)
     logger.info("Analysis complete: %d findings from %d checks", len(findings), total)

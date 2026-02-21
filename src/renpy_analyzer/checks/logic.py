@@ -34,16 +34,15 @@ def check(project: ProjectModel) -> list[Finding]:
                     title=f"Operator precedence bug: '{left_var} {operator} {right_var} == {bool_val}'",
                     description=(
                         f"At {cond.file}:{cond.line}: `{expr}` — Python evaluates this as "
-                        f"`{left_var} {operator} ({right_var} == {bool_val})` due to operator "
-                        f"precedence. Since `{left_var}` is truthy when non-zero, the "
-                        f"`{right_var} == {bool_val}` check is effectively ignored."
+                        f"`... {operator} ({right_var} == {bool_val})` due to operator "
+                        f"precedence. The comparison `== {bool_val}` only applies to "
+                        f"`{right_var}`, not the full expression to the left of `{operator}`."
                     ),
                     file=cond.file,
                     line=cond.line,
                     suggestion=(
-                        f"Write as: `{left_var} == {bool_val} {operator} {right_var} == {bool_val}` "
-                        f"or better: `{'not ' if bool_val == 'False' else ''}{left_var} "
-                        f"{operator} {'not ' if bool_val == 'False' else ''}{right_var}`"
+                        f"Add parentheses to clarify: `({right_var} == {bool_val})` "
+                        f"or simplify to `{'not ' if bool_val == 'False' else ''}{right_var}`"
                     ),
                 )
             )

@@ -44,28 +44,31 @@ def check(project: ProjectModel) -> list[Finding]:
         except OSError:
             logger.warning("Cannot scan images directory %s", images_dir, exc_info=True)
 
-    for scene in project.scenes:
-        name_lower = scene.image_name.lower()
-        tag = name_lower.split()[0] if " " in name_lower else name_lower
-        if name_lower not in defined_images and tag not in defined_images:
-            findings.append(
-                Finding(
-                    severity=Severity.MEDIUM,
-                    check_name="assets",
-                    title=f"Undefined scene image '{scene.image_name}'",
-                    description=(
-                        f"'scene {scene.image_name}' at {scene.file}:{scene.line} "
-                        f"references an image that has no 'image' definition in any .rpy file. "
-                        f"This may work if a matching file exists in game/images/, but "
-                        f"explicit definitions are safer."
-                    ),
-                    file=scene.file,
-                    line=scene.line,
-                    suggestion=(
-                        f"Add 'image {scene.image_name} = ...' or verify the image file exists in game/images/."
-                    ),
+    # Skip undefined scene image check when .rpa archives are present —
+    # images inside archives are invisible to filesystem checks.
+    if not project.has_rpa:
+        for scene in project.scenes:
+            name_lower = scene.image_name.lower()
+            tag = name_lower.split()[0] if " " in name_lower else name_lower
+            if name_lower not in defined_images and tag not in defined_images:
+                findings.append(
+                    Finding(
+                        severity=Severity.MEDIUM,
+                        check_name="assets",
+                        title=f"Undefined scene image '{scene.image_name}'",
+                        description=(
+                            f"'scene {scene.image_name}' at {scene.file}:{scene.line} "
+                            f"references an image that has no 'image' definition in any .rpy file. "
+                            f"This may work if a matching file exists in game/images/, but "
+                            f"explicit definitions are safer."
+                        ),
+                        file=scene.file,
+                        line=scene.line,
+                        suggestion=(
+                            f"Add 'image {scene.image_name} = ...' or verify the image file exists in game/images/."
+                        ),
+                    )
                 )
-            )
 
     movie_path_re = re.compile(r'Movie\(\s*play\s*=\s*"([^"]+)"')
 

@@ -155,6 +155,8 @@ def parse_file(filepath: str) -> dict:
     transform_refs: list[TransformRef] = []
     translations: list[TranslationBlock] = []
 
+    menu_stack: list[tuple[Menu, int, MenuChoice | None, int]] = []
+    # Each tuple: (menu, menu_indent, current_choice, choice_indent)
     current_menu: Menu | None = None
     menu_indent: int = 0
     current_choice: MenuChoice | None = None
@@ -170,34 +172,41 @@ def parse_file(filepath: str) -> dict:
         indent = _get_indent(line)
 
         # --- Menu state tracking ---
+        # Close any menus whose indent level has been exceeded
+        while current_menu is not None and indent <= menu_indent and line.strip() != "":
+            if current_choice is not None:
+                current_menu.choices.append(current_choice)
+                current_choice = None
+            menus.append(current_menu)
+            if menu_stack:
+                current_menu, menu_indent, current_choice, choice_indent = menu_stack.pop()
+                # The nested menu block counts as content for the parent choice
+                if current_choice is not None:
+                    current_choice.content_lines += 1
+            else:
+                current_menu = None
+
         if current_menu is not None:
-            if indent <= menu_indent and line.strip() != "":
+            m = RE_MENU_CHOICE.match(line)
+            if m and _get_indent(line) > menu_indent:
                 if current_choice is not None:
                     current_menu.choices.append(current_choice)
-                    current_choice = None
-                menus.append(current_menu)
-                current_menu = None
-            else:
-                m = RE_MENU_CHOICE.match(line)
-                if m and _get_indent(line) > menu_indent:
-                    if current_choice is not None:
-                        current_menu.choices.append(current_choice)
-                    current_choice = MenuChoice(
-                        text=m.group(2),
-                        line=lineno,
-                        content_lines=0,
-                        has_jump=False,
-                        has_return=False,
-                        condition=m.group(3),
-                    )
-                    choice_indent = _get_indent(line) + (_get_indent(line) - menu_indent)
-                elif current_choice is not None and indent >= choice_indent:
-                    current_choice.content_lines += 1
-                    stripped = line.strip()
-                    if stripped.startswith("jump "):
-                        current_choice.has_jump = True
-                    elif stripped == "return":
-                        current_choice.has_return = True
+                current_choice = MenuChoice(
+                    text=m.group(2),
+                    line=lineno,
+                    content_lines=0,
+                    has_jump=False,
+                    has_return=False,
+                    condition=m.group(3),
+                )
+                choice_indent = _get_indent(line) + (_get_indent(line) - menu_indent)
+            elif current_choice is not None and indent >= choice_indent:
+                current_choice.content_lines += 1
+                stripped = line.strip()
+                if stripped.startswith("jump "):
+                    current_choice.has_jump = True
+                elif stripped == "return":
+                    current_choice.has_return = True
 
         # --- Screen definition (column 0) ---
         m = RE_SCREEN_DEF.match(line)
@@ -232,10 +241,20 @@ def parse_file(filepath: str) -> dict:
 
         # --- Menu start ---
         m = RE_MENU.match(line)
-        if m and current_menu is None:
-            menu_indent = _get_indent(line)
-            current_menu = Menu(file=display_path, line=lineno)
-            continue
+        if m:
+            new_menu_indent = _get_indent(line)
+            if current_menu is None:
+                menu_indent = new_menu_indent
+                current_menu = Menu(file=display_path, line=lineno)
+                continue
+            elif new_menu_indent > menu_indent:
+                # Nested menu — push current menu state onto the stack
+                menu_stack.append((current_menu, menu_indent, current_choice, choice_indent))
+                menu_indent = new_menu_indent
+                current_menu = Menu(file=display_path, line=lineno)
+                current_choice = None
+                choice_indent = 0
+                continue
 
         # --- Jump expression (before normal jump) ---
         m = RE_JUMP_EXPR.match(line)
@@ -525,11 +544,19 @@ def parse_file(filepath: str) -> dict:
                         )
                     )
 
-    # Finalize any in-progress menu at end of file
-    if current_menu is not None:
+    # Finalize any in-progress menus at end of file (drain the entire stack)
+    while current_menu is not None:
         if current_choice is not None:
             current_menu.choices.append(current_choice)
+            current_choice = None
         menus.append(current_menu)
+        if menu_stack:
+            current_menu, menu_indent, current_choice, choice_indent = menu_stack.pop()
+            # The nested menu block counts as content for the parent choice
+            if current_choice is not None:
+                current_choice.content_lines += 1
+        else:
+            current_menu = None
 
     return {
         "labels": labels,

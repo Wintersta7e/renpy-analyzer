@@ -54,14 +54,31 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     else:
         scan_dir = root
 
+    # Check if this directory contains multiple game projects
+    if scan_dir == root:  # No top-level game/ was found
+        game_subdirs = []
+        for child in sorted(root.iterdir()):
+            if child.is_dir() and (child / "game").is_dir():
+                game_subdirs.append(child.name)
+    else:
+        game_subdirs = []
+
     rpy_files = sorted(scan_dir.rglob("*.rpy"))
     model = ProjectModel(root_dir=str(scan_dir))
+    if len(game_subdirs) > 1:
+        model.multi_game_dirs = game_subdirs
     model.files = [str(f) for f in rpy_files]
+    model.has_rpa = any(scan_dir.glob("*.rpa"))
 
     if sdk_path:
         _load_with_sdk(model, rpy_files, scan_dir, sdk_path)
     else:
         _load_with_regex(model, rpy_files, scan_dir)
+
+    if not rpy_files:
+        rpyc_files = list(scan_dir.rglob("*.rpyc"))
+        if rpyc_files:
+            model.has_rpyc_only = True
 
     logger.info("Loaded %d .rpy files from %s", len(rpy_files), scan_dir)
     return model

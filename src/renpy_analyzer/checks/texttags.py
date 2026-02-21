@@ -91,7 +91,17 @@ def _validate_tags(text: str) -> list[str]:
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
 
+    # Deduplicate dialogue lines — the parser may capture the same line
+    # via both RE_DIALOGUE and RE_DIALOGUE_FALLBACK
+    seen: set[tuple[str, int]] = set()
+    unique_dialogue: list = []
     for dl in project.dialogue:
+        key = (dl.file, dl.line)
+        if key not in seen:
+            seen.add(key)
+            unique_dialogue.append(dl)
+
+    for dl in unique_dialogue:
         if not dl.text:
             continue
 

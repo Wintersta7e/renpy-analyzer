@@ -12,17 +12,26 @@ def check(project: ProjectModel) -> list[Finding]:
     for label in project.labels:
         label_names.setdefault(label.name, []).append(label)
 
+    # When .rpa archives are present, missing labels may exist inside
+    # archives we can't inspect — downgrade from CRITICAL to MEDIUM.
+    missing_severity = Severity.MEDIUM if project.has_rpa else Severity.CRITICAL
+    rpa_note = (
+        " Note: this game uses .rpa archives — the target label may exist inside an archive."
+        if project.has_rpa
+        else ""
+    )
+
     for jump in project.jumps:
         if jump.target not in label_names:
             findings.append(
                 Finding(
-                    severity=Severity.CRITICAL,
+                    severity=missing_severity,
                     check_name="labels",
                     title=f"Missing label '{jump.target}'",
                     description=(
                         f"jump {jump.target} at {jump.file}:{jump.line} "
                         f"targets a label that is never defined in any .rpy file. "
-                        f"This will crash at runtime."
+                        f"This will crash at runtime.{rpa_note}"
                     ),
                     file=jump.file,
                     line=jump.line,
@@ -34,13 +43,13 @@ def check(project: ProjectModel) -> list[Finding]:
         if call.target not in label_names:
             findings.append(
                 Finding(
-                    severity=Severity.CRITICAL,
+                    severity=missing_severity,
                     check_name="labels",
                     title=f"Missing label '{call.target}'",
                     description=(
                         f"call {call.target} at {call.file}:{call.line} "
                         f"targets a label that is never defined. "
-                        f"This will crash at runtime."
+                        f"This will crash at runtime.{rpa_note}"
                     ),
                     file=call.file,
                     line=call.line,

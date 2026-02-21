@@ -196,3 +196,6 @@ class ProjectModel:
     transform_defs: list[TransformDef] = field(default_factory=list)
     transform_refs: list[TransformRef] = field(default_factory=list)
     translations: list[TranslationBlock] = field(default_factory=list)
+    has_rpa: bool = False
+    has_rpyc_only: bool = False
+    multi_game_dirs: list[str] = field(default_factory=list)
