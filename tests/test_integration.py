@@ -12,7 +12,9 @@ from renpy_analyzer.checks import ALL_CHECKS
 from renpy_analyzer.models import Severity
 from renpy_analyzer.project import load_project
 
-TEST_GAME = "/mnt/e/H/Renpy/ReviewProjects/OneDayataTime-S2-Ch.21-Pt.1-pc"
+import os
+
+TEST_GAME = os.environ.get("RENPY_TEST_GAME", "/tmp/renpy-test-game")
 
 
 @pytest.fixture
