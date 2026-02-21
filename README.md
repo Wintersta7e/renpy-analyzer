@@ -51,7 +51,7 @@ pip install -e ".[dev]"
 ### Dependencies
 
 - **customtkinter** — GUI framework (dark mode)
-- **PyMuPDF** — PDF report generation
+- **reportlab** — PDF report generation
 - **Pillow** — Image support (CustomTkinter dependency)
 - **click** — CLI interface
 
@@ -132,7 +132,7 @@ src/renpy_analyzer/
 │   └── flow.py         # Unreachable code after jump/return
 └── report/
     ├── finding.py       # Finding dataclass with severity levels
-    └── pdf.py           # Styled PDF generator (PyMuPDF, midnight theme)
+    └── pdf.py           # Styled PDF generator (ReportLab, midnight theme)
 ```
 
 ## Development
@@ -189,6 +189,12 @@ Output: `dist/RenpyAnalyzer.exe` (~34MB single-file executable).
 - Dynamic `jump expression` / `call expression` detection
 - Filters Ren'Py built-in images (`black`, `white`) and keywords (`narrator`, `extend`) from checks
 
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or sponsored by the [Ren'Py](https://www.renpy.org/) project or Tom Rothamel. "Ren'Py" is a registered trademark of Tom Rothamel. This tool uses the name solely to describe its purpose: analyzing Ren'Py project files.
+
+The optional SDK parser feature invokes the user's own locally-installed Ren'Py SDK via subprocess. No Ren'Py code is bundled or redistributed with this tool.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
