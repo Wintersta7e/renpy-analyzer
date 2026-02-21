@@ -46,11 +46,30 @@ def _is_engine_file(path: Path) -> bool:
     return "renpy" in parts
 
 
+def detect_sub_games(path: str) -> list[str]:
+    """Detect multiple sub-game directories within a parent folder.
+
+    Returns a list of sub-directory names that each contain a ``game/``
+    folder, or an empty list if the path itself is a single game.
+    """
+    root = Path(path)
+    if (root / "game").is_dir():
+        return []  # Single game — no sub-games
+    sub_games = []
+    for child in sorted(root.iterdir()):
+        if child.is_dir() and (child / "game").is_dir():
+            sub_games.append(child.name)
+    return sub_games if len(sub_games) > 1 else []
+
+
 def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     """Load a Ren'Py project from a directory path.
 
     If path points to a directory containing a 'game/' subfolder,
     uses the game/ subfolder. Otherwise scans the directory directly.
+
+    For directories with multiple sub-games, use :func:`detect_sub_games`
+    and call this function once per sub-game.
 
     Parameters
     ----------
@@ -67,22 +86,11 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     else:
         scan_dir = root
 
-    # Check if this directory contains multiple game projects
-    if scan_dir == root:  # No top-level game/ was found
-        game_subdirs = []
-        for child in sorted(root.iterdir()):
-            if child.is_dir() and (child / "game").is_dir():
-                game_subdirs.append(child.name)
-    else:
-        game_subdirs = []
-
     rpy_files = sorted(
         f for f in scan_dir.rglob("*.rpy")
         if not _is_engine_file(f)
     )
     model = ProjectModel(root_dir=str(scan_dir))
-    if len(game_subdirs) > 1:
-        model.multi_game_dirs = game_subdirs
     model.files = [str(f) for f in rpy_files]
     model.has_rpa = any(scan_dir.glob("*.rpa"))
 

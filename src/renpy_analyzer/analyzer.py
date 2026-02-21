@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from pathlib import Path
 
 from .checks import ALL_CHECKS
 from .models import Finding, Severity
-from .project import load_project
+from .project import detect_sub_games, load_project
 
 logger = logging.getLogger("renpy_analyzer.analyzer")
 
@@ -21,6 +22,9 @@ def run_analysis(
 ) -> list[Finding]:
     """Run analysis on a Ren'Py project and return sorted findings.
 
+    When the project path contains multiple sub-games (e.g. Season 1,
+    Season 2), each is analyzed independently and findings are combined.
+
     Parameters
     ----------
     project_path:
@@ -31,6 +35,8 @@ def run_analysis(
         Optional callback ``(message, fraction)`` for progress updates.
     cancel_check:
         Optional callable returning *True* when the caller wants to abort.
+    sdk_path:
+        Optional path to a Ren'Py SDK directory.
 
     Returns
     -------
@@ -56,10 +62,36 @@ def run_analysis(
     def _cancelled() -> bool:
         return cancel_check is not None and cancel_check()
 
+    # Detect multi-subdir layout (e.g. Season 1, Season 2)
+    sub_games = detect_sub_games(project_path)
+    if sub_games:
+        findings = _run_multi_game_analysis(
+            project_path, sub_games, checks, _progress, _cancelled, sdk_path,
+        )
+    else:
+        findings = _run_single_analysis(
+            project_path, checks, _progress, _cancelled, sdk_path,
+        )
+
+    findings.sort(key=lambda f: f.severity)
+    logger.info("Analysis complete: %d findings from %d checks", len(findings), len(checks))
+    _progress("Analysis complete.", 1.0)
+    return findings
+
+
+def _run_single_analysis(
+    project_path: str,
+    checks: list[str],
+    _progress: Callable[[str, float], None],
+    _cancelled: Callable[[], bool],
+    sdk_path: str | None,
+    file_prefix: str = "",
+) -> list[Finding]:
+    """Analyze a single game project."""
     parser_label = "SDK" if sdk_path else "regex"
-    _progress(f"Parsing project files ({parser_label} parser)...", 0.0)
+    _progress(f"Parsing {file_prefix or 'project'} files ({parser_label} parser)...", 0.0)
     project = load_project(project_path, sdk_path=sdk_path)
-    _progress(f"Parsed {len(project.files)} .rpy files ({parser_label} parser).", 0.1)
+    _progress(f"Parsed {len(project.files)} .rpy files.", 0.1)
 
     total = len(checks)
     findings: list[Finding] = []
@@ -94,30 +126,47 @@ def run_analysis(
             ),
         )
 
-    # Warn if the selected directory contains multiple separate game projects
-    if project.multi_game_dirs:
-        dirs = project.multi_game_dirs
-        dir_list = ", ".join(dirs[:5]) + ("..." if len(dirs) > 5 else "")
-        findings.insert(
-            0,
-            Finding(
-                severity=Severity.MEDIUM,
-                check_name="project",
-                title="Multiple game projects detected",
-                description=(
-                    f"The selected directory contains {len(dirs)} separate game projects: "
-                    f"{dir_list}. "
-                    f"Analyzing them together may produce false positives "
-                    f"(duplicate labels, cross-project references). "
-                    f"For accurate results, point the analyzer at a single game directory."
-                ),
-                file="",
-                line=0,
-                suggestion="Select a specific game subdirectory instead of the parent folder.",
-            ),
-        )
+    # Prefix file paths if this is part of a multi-game run
+    if file_prefix:
+        for f in findings:
+            if f.file:
+                f.file = f"{file_prefix}/{f.file}"
 
-    findings.sort(key=lambda f: f.severity)
-    logger.info("Analysis complete: %d findings from %d checks", len(findings), total)
-    _progress("Analysis complete.", 1.0)
     return findings
+
+
+def _run_multi_game_analysis(
+    project_path: str,
+    sub_games: list[str],
+    checks: list[str],
+    _progress: Callable[[str, float], None],
+    _cancelled: Callable[[], bool],
+    sdk_path: str | None,
+) -> list[Finding]:
+    """Analyze each sub-game independently and combine findings."""
+    root = Path(project_path)
+    all_findings: list[Finding] = []
+    total_sub = len(sub_games)
+
+    _progress(f"Found {total_sub} sub-games, analyzing each independently...", 0.0)
+    logger.info("Multi-game analysis: %d sub-games in %s", total_sub, project_path)
+
+    for sub_idx, sub_name in enumerate(sub_games):
+        if _cancelled():
+            return all_findings
+
+        sub_path = str(root / sub_name)
+        base_frac = sub_idx / total_sub
+        next_frac = (sub_idx + 1) / total_sub
+
+        def _sub_progress(msg: str, frac: float, _base=base_frac, _span=next_frac - base_frac) -> None:
+            _progress(f"[{sub_name}] {msg}", _base + frac * _span)
+
+        sub_findings = _run_single_analysis(
+            sub_path, checks, _sub_progress, _cancelled, sdk_path,
+            file_prefix=sub_name,
+        )
+        all_findings.extend(sub_findings)
+        logger.info("  %s: %d findings", sub_name, len(sub_findings))
+
+    return all_findings
