@@ -6,6 +6,10 @@ A desktop GUI tool that scans [Ren'Py](https://www.renpy.org/) visual novel proj
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
+<p align="center">
+  <img src="screenshots/gui.png" alt="Ren'Py Analyzer GUI" width="700">
+</p>
+
 ## What It Does
 
 Ren'Py Analyzer statically analyzes `.rpy` script files and detects common bugs that are easy to miss during development but can cause crashes, broken logic, or cross-platform failures.
