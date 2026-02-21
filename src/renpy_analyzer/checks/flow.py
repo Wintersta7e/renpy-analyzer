@@ -27,24 +27,26 @@ def check(project: ProjectModel) -> list[Finding]:
         else:
             rel_path = file_path_str
 
-        try:
-            lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        except OSError as exc:
-            findings.append(
-                Finding(
-                    severity=Severity.MEDIUM,
-                    check_name="flow",
-                    title="Could not read file for flow analysis",
-                    description=(
-                        f"File '{rel_path}' could not be read: {exc}. "
-                        f"Unreachable code analysis was skipped for this file."
-                    ),
-                    file=rel_path,
-                    line=0,
-                    suggestion="Check file permissions and ensure the file is accessible.",
+        lines = project.raw_lines.get(rel_path)
+        if lines is None:
+            try:
+                lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError as exc:
+                findings.append(
+                    Finding(
+                        severity=Severity.MEDIUM,
+                        check_name="flow",
+                        title="Could not read file for flow analysis",
+                        description=(
+                            f"File '{rel_path}' could not be read: {exc}. "
+                            f"Unreachable code analysis was skipped for this file."
+                        ),
+                        file=rel_path,
+                        line=0,
+                        suggestion="Check file permissions and ensure the file is accessible.",
+                    )
                 )
-            )
-            continue
+                continue
 
         _check_file(lines, rel_path, findings)
 

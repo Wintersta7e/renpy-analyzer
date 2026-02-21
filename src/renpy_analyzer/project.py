@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from pathlib import Path
 
@@ -10,26 +11,13 @@ from .parser import parse_file
 
 logger = logging.getLogger("renpy_analyzer.project")
 
-# All model list keys — must match ProjectModel fields
+# Auto-derive mergeable list fields from ProjectModel dataclass.
+# Excludes scalar/dict fields (root_dir, files, has_rpa, has_rpyc_only, raw_lines).
 _MODEL_KEYS = [
-    "labels",
-    "jumps",
-    "calls",
-    "dynamic_jumps",
-    "variables",
-    "menus",
-    "scenes",
-    "shows",
-    "images",
-    "music",
-    "characters",
-    "dialogue",
-    "conditions",
-    "screen_defs",
-    "screen_refs",
-    "transform_defs",
-    "transform_refs",
-    "translations",
+    f.name
+    for f in dataclasses.fields(ProjectModel)
+    if f.name not in ("root_dir", "files", "has_rpa", "has_rpyc_only", "raw_lines")
+    and f.default_factory is list
 ]
 
 
@@ -112,10 +100,13 @@ def _load_with_regex(model: ProjectModel, rpy_files: list[Path], scan_dir: Path)
     """Parse files using the built-in regex parser."""
     for rpy_file in rpy_files:
         try:
+            lines = rpy_file.read_text(encoding="utf-8", errors="replace").splitlines()
             result = parse_file(str(rpy_file))
         except Exception:
             logger.warning("Skipping %s: failed to parse", rpy_file, exc_info=True)
             continue
+        rel_path = str(rpy_file.relative_to(scan_dir))
+        model.raw_lines[rel_path] = lines
         _merge_result(model, result, rpy_file, scan_dir)
 
 
@@ -132,6 +123,12 @@ def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, s
             logger.warning("SDK parser returned no result for %s", rpy_file)
             continue
         result = convert_file_result(raw_results[file_key], file_key)
+        try:
+            lines = rpy_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            rel_path = str(rpy_file.relative_to(scan_dir))
+            model.raw_lines[rel_path] = lines
+        except OSError:
+            pass
         _merge_result(model, result, rpy_file, scan_dir)
 
 

@@ -74,7 +74,11 @@ _SEV_FG = {
     Severity.STYLE: _C["white"],
 }
 
-_CATEGORY_ORDER = ["Labels", "Variables", "Logic", "Menus", "Assets", "Characters", "Flow"]
+_CATEGORY_ORDER = [
+    "Labels", "Variables", "Logic", "Menus", "Assets", "Characters", "Flow",
+    "Screens", "Transforms", "Translations", "Text Tags",
+    "Call Safety", "Call Cycles", "Empty Labels", "Persistent Vars",
+]
 
 _CHECK_TO_CATEGORY = {
     "labels": "Labels",
@@ -84,6 +88,14 @@ _CHECK_TO_CATEGORY = {
     "assets": "Assets",
     "characters": "Characters",
     "flow": "Flow",
+    "screens": "Screens",
+    "transforms": "Transforms",
+    "translations": "Translations",
+    "texttags": "Text Tags",
+    "callreturn": "Call Safety",
+    "callcycle": "Call Cycles",
+    "emptylabels": "Empty Labels",
+    "persistent": "Persistent Vars",
 }
 
 # ---------------------------------------------------------------------------

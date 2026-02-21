@@ -29,7 +29,7 @@ from .models import (
 
 # --- Regex patterns ---
 
-RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*:")
+RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*(?:\(.*\))?\s*:")
 RE_JUMP_EXPR = re.compile(r"^\s+jump\s+expression\s+(.+)")
 RE_CALL_EXPR = re.compile(r"^\s+call\s+expression\s+(.+)")
 RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
@@ -121,9 +121,6 @@ RENPY_KEYWORDS = frozenset(
         "foreground",
     }
 )
-
-BUILTIN_IMAGES = frozenset({"black", "text", "vtext"})
-
 
 def _get_indent(line: str) -> int:
     return len(line) - len(line.lstrip())

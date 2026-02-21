@@ -40,16 +40,18 @@ def analyze_label_bodies(project: ProjectModel) -> dict[str, LabelBody]:
 
     for file_path_str in project.files:
         file_path = Path(file_path_str)
-        try:
-            lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        except OSError as exc:
-            logger.warning("Could not read %s: %s", file_path_str, exc)
-            continue
-
         if file_path.is_absolute():
             rel_path = str(file_path.relative_to(root))
         else:
             rel_path = file_path_str
+
+        lines = project.raw_lines.get(rel_path)
+        if lines is None:
+            try:
+                lines = file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError as exc:
+                logger.warning("Could not read %s: %s", file_path_str, exc)
+                continue
 
         _analyze_file(lines, rel_path, result)
 

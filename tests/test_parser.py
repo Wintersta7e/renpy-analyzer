@@ -461,7 +461,7 @@ def test_rpy_keyword_not_dialogue(tmp_path):
 
 def test_builtin_images():
     """black, text, vtext are builtins; white is not."""
-    from renpy_analyzer.parser import BUILTIN_IMAGES
+    from renpy_analyzer.models import BUILTIN_IMAGES
 
     assert "black" in BUILTIN_IMAGES
     assert "text" in BUILTIN_IMAGES

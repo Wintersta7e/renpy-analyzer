@@ -16,6 +16,9 @@ class Severity(IntEnum):
     STYLE = 4
 
 
+BUILTIN_IMAGES = frozenset({"black", "text", "vtext"})
+
+
 @dataclass
 class Label:
     name: str
@@ -198,3 +201,4 @@ class ProjectModel:
     translations: list[TranslationBlock] = field(default_factory=list)
     has_rpa: bool = False
     has_rpyc_only: bool = False
+    raw_lines: dict[str, list[str]] = field(default_factory=dict)

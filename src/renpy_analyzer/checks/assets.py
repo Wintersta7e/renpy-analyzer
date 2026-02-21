@@ -6,8 +6,7 @@ import logging
 import re
 from pathlib import Path
 
-from ..models import Finding, ProjectModel, Severity
-from ..parser import BUILTIN_IMAGES
+from ..models import BUILTIN_IMAGES, Finding, ProjectModel, Severity
 
 logger = logging.getLogger("renpy_analyzer.checks.assets")
 

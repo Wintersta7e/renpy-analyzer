@@ -63,7 +63,31 @@ def check(project: ProjectModel) -> list[Finding]:
         elif var.kind in ("assign", "augment"):
             all_refs.add(var.name)
 
-    # Duplicate defaults
+    for cond in project.conditions:
+        for name in re.findall(r"\b([A-Za-z_]\w*)\b", cond.expression):
+            if name not in ("True", "False", "None", "and", "or", "not", "if", "elif", "else", "in", "is"):
+                all_refs.add(name)
+
+    for dl in project.dialogue:
+        all_refs.add(dl.speaker)
+
+    declared_names = set(defaults.keys())
+    for var in project.variables:
+        if var.kind == "define":
+            declared_names.add(var.name)
+
+    _check_duplicate_defaults(defaults, findings)
+    _check_case_mismatches(defaults, findings)
+    _check_undeclared(project, declared_names, findings)
+    _check_unused(defaults, all_refs, findings)
+    _check_define_mutation(project, findings)
+    _check_persistent_define(project, findings)
+    _check_builtin_shadowing(project, findings)
+
+    return findings
+
+
+def _check_duplicate_defaults(defaults: dict[str, list], findings: list[Finding]) -> None:
     for name, defs in defaults.items():
         if len(defs) > 1:
             locations = ", ".join(f"{d.file}:{d.line}" for d in defs)
@@ -83,18 +107,8 @@ def check(project: ProjectModel) -> list[Finding]:
                     )
                 )
 
-    for cond in project.conditions:
-        for name in re.findall(r"\b([A-Za-z_]\w*)\b", cond.expression):
-            if name not in ("True", "False", "None", "and", "or", "not", "if", "elif", "else", "in", "is"):
-                all_refs.add(name)
 
-    for dl in project.dialogue:
-        all_refs.add(dl.speaker)
-
-    # Case mismatch detection — two strategies:
-    # 1. Exact name collision (same name, different casing): myVar vs myvar
-    # 2. Pattern-based (numbered family with inconsistent casing): foo_slow_1 vs foo_Slow_3
-
+def _check_case_mismatches(defaults: dict[str, list], findings: list[Finding]) -> None:
     # Strategy 1: exact lowercase collision
     lower_map: dict[str, list[str]] = {}
     for name in defaults:
@@ -127,23 +141,19 @@ def check(project: ProjectModel) -> list[Finding]:
                 reported_names.add(vname)
 
     # Strategy 2: pattern-based — strip trailing digits to find families
-    # e.g., marysex4_slow_1, marysex4_slow_2, marysex4_Slow_3
-    #   all share base "marysex4_slow_" (lowered), but one has different casing
-    family_map: dict[str, list[str]] = {}  # lowered_base -> [original names]
+    family_map: dict[str, list[str]] = {}
     for name in defaults:
         if "." in name or name in reported_names:
             continue
-        base = re.sub(r"\d+$", "", name)  # strip trailing digits
-        if base != name:  # only if there was a trailing number
+        base = re.sub(r"\d+$", "", name)
+        if base != name:
             family_map.setdefault(base.lower(), []).append(name)
 
     for _base_lower, members in family_map.items():
         if len(members) < 2:
             continue
-        # Check if any member has different casing in the non-digit prefix
         bases = [re.sub(r"\d+$", "", m) for m in members]
-        if len(set(bases)) > 1:  # different casing in the base part
-            # Find the outlier (minority casing)
+        if len(set(bases)) > 1:
             base_counts = Counter(bases)
             majority_base = base_counts.most_common(1)[0][0]
             for m, b in zip(members, bases, strict=True):
@@ -168,12 +178,8 @@ def check(project: ProjectModel) -> list[Finding]:
                         )
                     )
 
-    # Undeclared variables
-    declared_names = set(defaults.keys())
-    for var in project.variables:
-        if var.kind == "define":
-            declared_names.add(var.name)
 
+def _check_undeclared(project: ProjectModel, declared_names: set[str], findings: list[Finding]) -> None:
     for var in project.variables:
         if var.kind == "assign" and var.name not in declared_names:
             if "." in var.name:
@@ -194,7 +200,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 )
             )
 
-    # Unused defaults
+
+def _check_unused(defaults: dict[str, list], all_refs: set[str], findings: list[Finding]) -> None:
     for name, var_list in defaults.items():
         if "." in name:
             continue
@@ -215,7 +222,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 )
             )
 
-    # Mutable define: define X then $ X = / $ X +=
+
+def _check_define_mutation(project: ProjectModel, findings: list[Finding]) -> None:
     defined_vars: dict[str, Variable] = {}
     for var in project.variables:
         if var.kind == "define" and "." not in var.name:
@@ -242,7 +250,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 )
             )
 
-    # define persistent.X misuse
+
+def _check_persistent_define(project: ProjectModel, findings: list[Finding]) -> None:
     for var in project.variables:
         if var.kind == "define" and var.name.startswith("persistent."):
             findings.append(
@@ -261,7 +270,8 @@ def check(project: ProjectModel) -> list[Finding]:
                 )
             )
 
-    # Builtin name shadowing
+
+def _check_builtin_shadowing(project: ProjectModel, findings: list[Finding]) -> None:
     for var in project.variables:
         if var.kind in ("default", "define") and var.name in PYTHON_BUILTINS:
             findings.append(
@@ -279,5 +289,3 @@ def check(project: ProjectModel) -> list[Finding]:
                     suggestion=f"Rename '{var.name}' to avoid shadowing the Python builtin.",
                 )
             )
-
-    return findings

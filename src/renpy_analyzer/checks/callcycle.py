@@ -43,19 +43,32 @@ def check(project: ProjectModel) -> list[Finding]:
         if (caller, target) not in call_locations:
             call_locations[(caller, target)] = (call.file, call.line)
 
-    # Detect cycles using DFS with coloring
+    # Detect cycles using iterative DFS with coloring (avoids RecursionError
+    # on projects with >1000 labels in deep call chains).
     WHITE, GRAY, BLACK = 0, 1, 2
     color: dict[str, int] = {name: WHITE for name in label_set}
     parent: dict[str, str | None] = {}
     reported_cycles: set[frozenset[str]] = set()
 
-    def dfs(node: str) -> None:
-        color[node] = GRAY
-        for neighbor in call_graph.get(node, set()):
+    for label_name in sorted(label_set):
+        if color.get(label_name, WHITE) != WHITE:
+            continue
+        parent[label_name] = None
+        color[label_name] = GRAY
+        stack: list[tuple[str, iter]] = [
+            (label_name, iter(sorted(call_graph.get(label_name, set()))))
+        ]
+        while stack:
+            node, neighbors = stack[-1]
+            try:
+                neighbor = next(neighbors)
+            except StopIteration:
+                color[node] = BLACK
+                stack.pop()
+                continue
             if neighbor not in color:
                 continue
             if color[neighbor] == GRAY:
-                # Found a cycle — reconstruct it
                 cycle = _reconstruct_cycle(node, neighbor, parent)
                 cycle_key = frozenset(cycle)
                 if cycle_key not in reported_cycles:
@@ -63,13 +76,10 @@ def check(project: ProjectModel) -> list[Finding]:
                     _report_cycle(cycle, call_locations, findings)
             elif color[neighbor] == WHITE:
                 parent[neighbor] = node
-                dfs(neighbor)
-        color[node] = BLACK
-
-    for label_name in sorted(label_set):
-        if color.get(label_name, WHITE) == WHITE:
-            parent[label_name] = None
-            dfs(label_name)
+                color[neighbor] = GRAY
+                stack.append(
+                    (neighbor, iter(sorted(call_graph.get(neighbor, set()))))
+                )
 
     return findings
 
