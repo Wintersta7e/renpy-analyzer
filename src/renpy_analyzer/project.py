@@ -33,6 +33,19 @@ _MODEL_KEYS = [
 ]
 
 
+def _is_engine_file(path: Path) -> bool:
+    """Return True if the file is a Ren'Py engine file (not user code).
+
+    Engine files live under a 'renpy/' directory that ships with every
+    Ren'Py game.  These contain engine internals (common screens, default
+    persistent vars, ATL, etc.) that the game developer did not write and
+    cannot control.  Scanning them produces false positives across all
+    checks.
+    """
+    parts = path.parts
+    return "renpy" in parts
+
+
 def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     """Load a Ren'Py project from a directory path.
 
@@ -63,7 +76,10 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     else:
         game_subdirs = []
 
-    rpy_files = sorted(scan_dir.rglob("*.rpy"))
+    rpy_files = sorted(
+        f for f in scan_dir.rglob("*.rpy")
+        if not _is_engine_file(f)
+    )
     model = ProjectModel(root_dir=str(scan_dir))
     if len(game_subdirs) > 1:
         model.multi_game_dirs = game_subdirs

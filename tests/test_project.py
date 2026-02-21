@@ -110,3 +110,62 @@ def test_load_project_files_are_absolute(tmp_path):
     model = load_project(str(root))
     for f in model.files:
         assert Path(f).is_absolute()
+
+
+def test_engine_files_excluded(tmp_path):
+    """renpy/ engine files should be excluded from scanning."""
+    # Simulate multi-subdir layout (no top-level game/)
+    season1 = tmp_path / "Season1"
+    game1 = season1 / "game"
+    game1.mkdir(parents=True)
+    (game1 / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            "Hello"
+            return
+    """),
+        encoding="utf-8",
+    )
+    # Simulate renpy/common engine files
+    renpy_common = season1 / "renpy" / "common"
+    renpy_common.mkdir(parents=True)
+    (renpy_common / "00gamemenu.rpy").write_text(
+        textwrap.dedent("""\
+        label _enter_game_menu:
+            call _enter_game_menu
+            return
+    """),
+        encoding="utf-8",
+    )
+    (renpy_common / "00achievement.rpy").write_text(
+        textwrap.dedent("""\
+        default persistent._achievements = {}
+        default persistent._achievement_progress = {}
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    # Only user code should be loaded
+    assert len(model.files) == 1
+    assert any("script.rpy" in f for f in model.files)
+    assert not any("renpy" in f for f in model.files)
+    # Only user labels/vars, no engine data
+    assert len(model.labels) == 1
+    assert model.labels[0].name == "start"
+
+
+def test_engine_files_excluded_flat_layout(tmp_path):
+    """Even in flat layout (game/ exists), renpy/ siblings aren't scanned.
+
+    In flat layout, scan_dir is game/, so renpy/ is a sibling and not
+    included in rglob anyway.  But verify the filter doesn't break this.
+    """
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text("label start:\n    return\n", encoding="utf-8")
+    renpy_common = tmp_path / "renpy" / "common"
+    renpy_common.mkdir(parents=True)
+    (renpy_common / "engine.rpy").write_text("label _engine:\n    return\n", encoding="utf-8")
+    model = load_project(str(tmp_path))
+    assert len(model.files) == 1
+    assert len(model.labels) == 1
