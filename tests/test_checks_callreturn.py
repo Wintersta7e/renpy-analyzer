@@ -120,6 +120,17 @@ def test_return_after_unreachable_jump(tmp_path):
     assert len(findings) == 0
 
 
+def test_call_screen_not_flagged(tmp_path):
+    """'call screen X' is a screen call, not a label call — no finding."""
+    model = _project(tmp_path, """\
+        label start:
+            call screen preferences
+            return
+    """)
+    findings = check(model)
+    assert len(findings) == 0
+
+
 def test_empty_model(tmp_path):
     from renpy_analyzer.models import ProjectModel
     model = ProjectModel(root_dir=str(tmp_path))

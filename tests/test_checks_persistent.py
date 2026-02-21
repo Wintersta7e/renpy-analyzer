@@ -109,6 +109,44 @@ def test_declared_persistent_with_augment(tmp_path):
     assert len(findings) == 0
 
 
+def test_underscore_prefixed_skipped(tmp_path):
+    """persistent._internal vars are engine internals — not flagged."""
+    model = _project(tmp_path, """\
+        label start:
+            if persistent._file_page:
+                "Page set"
+            if persistent._achievements:
+                "Has achievements"
+            return
+    """)
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_underscore_prefixed_augment_skipped(tmp_path):
+    """persistent._internal augmented assign — not flagged."""
+    model = _project(tmp_path, """\
+        label start:
+            $ persistent._visit_count += 1
+            return
+    """)
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_non_underscore_still_flagged(tmp_path):
+    """persistent.user_var (no underscore prefix) without default — still flagged."""
+    model = _project(tmp_path, """\
+        label start:
+            if persistent.beaten_game:
+                "You won!"
+            return
+    """)
+    findings = check(model)
+    assert len(findings) == 1
+    assert "persistent.beaten_game" in findings[0].title
+
+
 def test_empty_model(tmp_path):
     from renpy_analyzer.models import ProjectModel
     model = ProjectModel(root_dir=str(tmp_path))

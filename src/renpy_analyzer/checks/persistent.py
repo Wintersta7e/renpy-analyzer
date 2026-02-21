@@ -37,22 +37,29 @@ def check(project: ProjectModel) -> list[Finding]:
 
     # Step 3: Find reads without defaults
     for name, (file, line) in sorted(reads.items()):
-        if name not in declared:
-            short_name = name  # e.g., "persistent.x"
-            findings.append(
-                Finding(
-                    severity=Severity.HIGH,
-                    check_name="persistent",
-                    title=f"Persistent variable '{short_name}' used without default",
-                    description=(
-                        f"'{short_name}' is referenced at {file}:{line} but never declared "
-                        f"with 'default {short_name} = ...'. On a fresh install, this "
-                        f"variable will be None, which may cause TypeError or logic bugs."
-                    ),
-                    file=file,
-                    line=line,
-                    suggestion=f"Add 'default {short_name} = <initial_value>' to initialize this persistent variable.",
-                )
+        if name in declared:
+            continue
+        # Skip underscore-prefixed vars — these are Ren'Py engine internals
+        # (e.g. persistent._file_page, persistent._achievements) initialized
+        # by the engine via Python code, not default statements.
+        var_suffix = name.split(".", 1)[1] if "." in name else name
+        if var_suffix.startswith("_"):
+            continue
+
+        findings.append(
+            Finding(
+                severity=Severity.HIGH,
+                check_name="persistent",
+                title=f"Persistent variable '{name}' used without default",
+                description=(
+                    f"'{name}' is referenced at {file}:{line} but never declared "
+                    f"with 'default {name} = ...'. On a fresh install, this "
+                    f"variable will be None, which may cause TypeError or logic bugs."
+                ),
+                file=file,
+                line=line,
+                suggestion=f"Add 'default {name} = <initial_value>' to initialize this persistent variable.",
             )
+        )
 
     return findings
