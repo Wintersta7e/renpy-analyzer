@@ -58,6 +58,11 @@ ignore = [
     "SIM108", # ternary operator — not always clearer
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# bridge_worker.py must run under Python 2.7 (SDK 7.x) — needs coding decl,
+# __future__ imports, io.open(), and %-formatting that ruff flags as unnecessary.
+"src/renpy_analyzer/bridge_worker.py" = ["UP009", "UP010", "UP020", "UP031"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["renpy_analyzer"]
 

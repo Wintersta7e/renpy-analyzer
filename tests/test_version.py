@@ -8,7 +8,6 @@ from renpy_analyzer.version import (
     select_sdk,
 )
 
-
 # ---------------------------------------------------------------------------
 # detect_renpy_version — 8.x format (vc_version.py with version string)
 # ---------------------------------------------------------------------------
