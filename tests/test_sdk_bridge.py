@@ -24,6 +24,7 @@ from renpy_analyzer.models import (
 )
 from renpy_analyzer.sdk_bridge import (
     convert_file_result,
+    detect_sdk_version,
     find_sdk_python,
     parse_files_with_sdk,
     validate_sdk_path,
@@ -43,7 +44,9 @@ def test_validate_sdk_path_no_renpy_dir(tmp_path):
 
 
 def test_validate_sdk_path_valid(tmp_path):
-    (tmp_path / "renpy").mkdir()
+    renpy_dir = tmp_path / "renpy"
+    renpy_dir.mkdir()
+    (renpy_dir / "vc_version.py").write_text("version = '8.5.2.1234'\n")
     py_dir = tmp_path / "lib" / "py3-linux-x86_64"
     py_dir.mkdir(parents=True)
     py_bin = py_dir / "python"
@@ -52,7 +55,8 @@ def test_validate_sdk_path_valid(tmp_path):
     assert validate_sdk_path(str(tmp_path)) is True
 
 
-def test_validate_sdk_path_no_python(tmp_path):
+def test_validate_sdk_path_no_version(tmp_path):
+    """SDK with renpy/ dir but no detectable version is invalid."""
     (tmp_path / "renpy").mkdir()
     assert validate_sdk_path(str(tmp_path)) is False
 
@@ -87,6 +91,38 @@ def test_find_sdk_python_fallback_glob(tmp_path):
         mock_platform.system.return_value = "Linux"
         result = find_sdk_python(str(tmp_path))
         assert "python3" in result
+
+
+def test_find_sdk_python_py2_linux(tmp_path):
+    """SDK 7.x only ships py2- directories — should still find Python."""
+    (tmp_path / "renpy").mkdir()
+    py_dir = tmp_path / "lib" / "py2-linux-x86_64"
+    py_dir.mkdir(parents=True)
+    py_bin = py_dir / "python"
+    py_bin.write_text("#!/bin/sh\n")
+
+    with patch("renpy_analyzer.sdk_bridge.platform") as mock_platform:
+        mock_platform.system.return_value = "Linux"
+        result = find_sdk_python(str(tmp_path))
+        assert result == str(py_bin)
+
+
+def test_find_sdk_python_prefers_py3(tmp_path):
+    """When both py3 and py2 exist, py3 should be preferred."""
+    (tmp_path / "renpy").mkdir()
+    py3_dir = tmp_path / "lib" / "py3-linux-x86_64"
+    py3_dir.mkdir(parents=True)
+    py3_bin = py3_dir / "python"
+    py3_bin.write_text("#!/bin/sh\n")
+    py2_dir = tmp_path / "lib" / "py2-linux-x86_64"
+    py2_dir.mkdir(parents=True)
+    py2_bin = py2_dir / "python"
+    py2_bin.write_text("#!/bin/sh\n")
+
+    with patch("renpy_analyzer.sdk_bridge.platform") as mock_platform:
+        mock_platform.system.return_value = "Linux"
+        result = find_sdk_python(str(tmp_path))
+        assert "py3" in result
 
 
 def test_find_sdk_python_not_found(tmp_path):
@@ -438,3 +474,20 @@ def test_parse_files_os_error(mock_run, mock_find_py, mock_find_worker):
 
     with pytest.raises(RuntimeError, match="Failed to launch"):
         parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+
+
+# ---------------------------------------------------------------------------
+# detect_sdk_version
+# ---------------------------------------------------------------------------
+
+
+def test_detect_sdk_version_8x(tmp_path):
+    """detect_sdk_version returns formatted version for 8.x SDK."""
+    (tmp_path / "renpy").mkdir()
+    (tmp_path / "renpy" / "vc_version.py").write_text("version = '8.5.2.26010301'\n")
+    assert detect_sdk_version(str(tmp_path)) == "8.5.2"
+
+
+def test_detect_sdk_version_none(tmp_path):
+    """detect_sdk_version returns None when no version is detectable."""
+    assert detect_sdk_version(str(tmp_path)) is None

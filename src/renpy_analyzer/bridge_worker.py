@@ -1,13 +1,17 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Bridge worker: runs under the Ren'Py SDK's bundled Python.
 
 Reads a JSON request from stdin, uses the SDK's renpy.parser to parse
 .rpy files, walks the AST, and writes a JSON response to stdout.
 
-This file is STANDALONE — it must not import anything from renpy_analyzer.
-It must work with Python 3.9+ (SDK ships 3.9-3.12).
+This file is STANDALONE -- it must not import anything from renpy_analyzer.
+It must work with Python 2.7+ (SDK 7.x) and Python 3.9+ (SDK 8.x).
 """
 
+from __future__ import print_function
+
+import io
 import json
 import os
 import re
@@ -48,9 +52,9 @@ def init_sdk(sdk_path, game_dir):
 
     # Mock the script object that PyCode.__init__ expects
     class FakeScript:
-        record_pycode: bool = False
-        all_pycode: list = []  # noqa: RUF012
-        all_pyexpr: list = []  # noqa: RUF012
+        record_pycode = False
+        all_pycode = []  # noqa: RUF012
+        all_pyexpr = []  # noqa: RUF012
 
     renpy.game.script = FakeScript()
 
@@ -351,7 +355,7 @@ def merge_results(target, source):
 def parse_file_with_sdk(renpy, filepath, game_dir):
     """Parse a single .rpy file using the SDK parser."""
     try:
-        with open(filepath, encoding="utf-8", errors="replace") as f:
+        with io.open(filepath, encoding="utf-8", errors="replace") as f:
             filedata = f.read()
     except OSError as exc:
         return None, str(exc)
@@ -431,7 +435,7 @@ def main():
         if error:
             errors.append({"file": filepath, "message": error})
             print(
-                f"WARNING: Failed to parse {filepath}: {error}",
+                "WARNING: Failed to parse %s: %s" % (filepath, error),
                 file=sys.stderr,
             )
         else:

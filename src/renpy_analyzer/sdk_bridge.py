@@ -46,17 +46,24 @@ def find_sdk_python(sdk_path: str) -> str:
     sdk = Path(sdk_path)
     system = platform.system().lower()
 
-    # Platform-specific search order
+    # Platform-specific search order (try py3 first, then py2 for older SDKs)
     candidates = []
     if system == "linux":
         candidates.append(sdk / "lib" / "py3-linux-x86_64" / "python")
+        candidates.append(sdk / "lib" / "py2-linux-x86_64" / "python")
     elif system == "windows":
         candidates.append(sdk / "lib" / "py3-windows-x86_64" / "python.exe")
+        candidates.append(sdk / "lib" / "py2-windows-x86_64" / "python.exe")
     elif system == "darwin":
         candidates.append(sdk / "lib" / "py3-mac-universal" / "python")
+        candidates.append(sdk / "lib" / "py2-mac-universal" / "python")
 
-    # Fallback: glob for any py3-* directory
+    # Fallback: glob for any py3-* or py2-* directory
     for match in sorted(glob(str(sdk / "lib" / "py3-*" / "python*"))):
+        p = Path(match)
+        if p.is_file():
+            candidates.append(p)
+    for match in sorted(glob(str(sdk / "lib" / "py2-*" / "python*"))):
         p = Path(match)
         if p.is_file():
             candidates.append(p)
@@ -67,22 +74,35 @@ def find_sdk_python(sdk_path: str) -> str:
             return str(candidate)
 
     raise RuntimeError(
-        f"Could not find SDK Python binary in {sdk_path}/lib/py3-*/. Is this a valid Ren'Py SDK directory?"
+        f"Could not find SDK Python binary in {sdk_path}/lib/. Is this a valid Ren'Py SDK directory?"
     )
 
 
 def validate_sdk_path(sdk_path: str) -> bool:
-    """Quick validation: SDK directory has renpy/ and a Python binary."""
+    """Quick validation: SDK directory has renpy/ and version is detectable."""
     sdk = Path(sdk_path)
     if not sdk.is_dir():
         return False
     if not (sdk / "renpy").is_dir():
         return False
-    try:
-        find_sdk_python(sdk_path)
-        return True
-    except RuntimeError:
-        return False
+    # Must be able to detect the version
+    from .version import detect_renpy_version
+
+    return detect_renpy_version(sdk_path) is not None
+
+
+
+def detect_sdk_version(sdk_path: str) -> str | None:
+    """Detect the Ren'Py version of an SDK and return a formatted string.
+
+    Returns e.g. ``"8.5.2"`` or ``"7.4.10"``, or *None* if detection fails.
+    """
+    from .version import detect_renpy_version, format_version
+
+    ver = detect_renpy_version(sdk_path)
+    if ver is None:
+        return None
+    return format_version(ver)
 
 
 def _find_bridge_worker() -> str:
