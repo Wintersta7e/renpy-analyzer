@@ -71,12 +71,13 @@ def _group_findings(findings: list) -> dict[Severity, list[_GroupedFinding]]:
 )
 @click.option(
     "--sdk-path",
-    default=None,
+    "sdk_paths",
+    multiple=True,
     type=click.Path(exists=True),
-    help="Path to a Ren'Py SDK directory. Uses SDK's parser instead of regex.",
+    help="Path to a Ren'Py SDK directory (repeatable for multiple versions).",
 )
 def analyze(
-    project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_path: str | None
+    project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_paths: tuple[str, ...]
 ) -> None:
     """Analyze a Ren'Py project for bugs and issues."""
     setup_logging(verbose=verbose)
@@ -84,6 +85,30 @@ def analyze(
     checks = None
     if check_names:
         checks = [c.strip() for c in check_names.split(",")]
+
+    # Auto-select the best SDK for this game's Ren'Py version
+    sdk_path: str | None = None
+    if sdk_paths:
+        from .sdk_bridge import detect_sdk_version
+        from .version import detect_renpy_version, format_version, select_sdk
+
+        game_ver = detect_renpy_version(project_path)
+        if game_ver:
+            click.echo(f"Game uses Ren'Py {format_version(game_ver)}", err=True)
+        sdk_path = select_sdk(game_ver, list(sdk_paths))
+        if sdk_path:
+            sdk_ver_str = detect_sdk_version(sdk_path) or "unknown"
+            click.echo(f"Using SDK {sdk_ver_str} at {sdk_path}", err=True)
+        elif game_ver:
+            click.echo(
+                f"No SDK matches Ren'Py {game_ver[0]}.x — using regex parser",
+                err=True,
+            )
+        else:
+            # No game version detected — use first SDK
+            sdk_path = sdk_paths[0] if sdk_paths else None
+            if sdk_path:
+                click.echo(f"Could not detect game version — using SDK at {sdk_path}", err=True)
 
     try:
         findings = run_analysis(

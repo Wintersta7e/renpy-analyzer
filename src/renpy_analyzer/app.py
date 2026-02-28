@@ -19,8 +19,9 @@ from .checks import ALL_CHECKS
 from .log import setup_logging
 from .models import Finding, Severity
 from .report.pdf import generate_pdf
-from .sdk_bridge import validate_sdk_path
+from .sdk_bridge import detect_sdk_version, validate_sdk_path
 from .settings import Settings
+from .version import detect_renpy_version, format_version, select_sdk
 
 logger = logging.getLogger("renpy_analyzer.app")
 
@@ -72,6 +73,9 @@ _TREE_COLUMNS = [
     ("line", "Line", 65, False, "center"),
 ]
 
+# Sentinel for the "no SDK" option in the dropdown
+_NO_SDK_LABEL = "None (regex parser)"
+
 
 class RenpyAnalyzerApp(ctk.CTk):
     """Main application window for Ren'Py Analyzer — midnight theme."""
@@ -89,7 +93,6 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # State
         self._path_var = StringVar(value=self._settings.game_path)
-        self._sdk_path_var = StringVar(value=self._settings.sdk_path)
         self._sdk_note = StringVar(value="")
         self._game_dir_note = StringVar(value="")
         self._check_vars: dict[str, BooleanVar] = {}
@@ -103,6 +106,12 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._severity_buttons: dict[Severity, ctk.CTkButton] = {}
         self._sort_column = self._settings.sort_column
         self._sort_ascending = self._settings.sort_ascending
+
+        # SDK manager state: list of (path, version_str) tuples
+        self._sdk_entries: list[tuple[str, str]] = []
+        self._sdk_dropdown_var = StringVar(value=_NO_SDK_LABEL)
+        self._resolved_sdk_path: str | None = None
+        self._load_sdk_entries()
 
         # Initialize severity filters from settings
         for sev in Severity:
@@ -133,6 +142,122 @@ class RenpyAnalyzerApp(ctk.CTk):
             game_sub = Path(self._path_var.get()) / "game"
             if game_sub.is_dir():
                 self._game_dir_note.set("game/ subfolder detected — will scan automatically.")
+            self._update_sdk_auto_note()
+
+    # -----------------------------------------------------------------------
+    # SDK management
+    # -----------------------------------------------------------------------
+
+    def _load_sdk_entries(self) -> None:
+        """Load SDK entries from settings, detecting versions at runtime."""
+        self._sdk_entries = []
+        for path in self._settings.sdk_paths:
+            ver = detect_sdk_version(path) or "?"
+            self._sdk_entries.append((path, ver))
+
+    def _sdk_dropdown_values(self) -> list[str]:
+        """Build the list of dropdown display values."""
+        values = [_NO_SDK_LABEL]
+        for path, ver in self._sdk_entries:
+            values.append(f"{ver} — {path}")
+        return values
+
+    def _add_sdk(self) -> None:
+        """Open folder dialog to add a new SDK path."""
+        if self._is_busy():
+            return
+        folder = filedialog.askdirectory(title="Select Ren'Py SDK Folder")
+        if not folder:
+            return
+        # Check for duplicates
+        existing_paths = {p for p, _ in self._sdk_entries}
+        if folder in existing_paths:
+            self._sdk_note.set("SDK already registered.")
+            self._sdk_note_label.configure(text_color=TEXT_DIM)
+            return
+        if not validate_sdk_path(folder):
+            self._sdk_note.set("Invalid SDK path — missing renpy/ or Python binary.")
+            self._sdk_note_label.configure(text_color="#DC3545")
+            return
+        ver = detect_sdk_version(folder) or "?"
+        self._sdk_entries.append((folder, ver))
+        self._refresh_sdk_dropdown()
+        # Auto-select the newly added SDK
+        self._sdk_dropdown_var.set(f"{ver} — {folder}")
+        self._sdk_note.set(f"Added Ren'Py {ver} SDK.")
+        self._sdk_note_label.configure(text_color="#28A745")
+        self._update_sdk_auto_note()
+
+    def _remove_sdk(self) -> None:
+        """Remove the currently selected SDK from the list."""
+        if self._is_busy():
+            return
+        selected = self._sdk_dropdown_var.get()
+        if selected == _NO_SDK_LABEL:
+            return
+        # Find and remove
+        self._sdk_entries = [(p, v) for p, v in self._sdk_entries if f"{v} — {p}" != selected]
+        self._refresh_sdk_dropdown()
+        self._sdk_dropdown_var.set(_NO_SDK_LABEL)
+        self._sdk_note.set("SDK removed.")
+        self._sdk_note_label.configure(text_color=TEXT_DIM)
+        self._update_sdk_auto_note()
+
+    def _refresh_sdk_dropdown(self) -> None:
+        """Rebuild the dropdown menu with current SDK entries."""
+        values = self._sdk_dropdown_values()
+        self._sdk_dropdown.configure(values=values)
+
+    def _on_sdk_dropdown_change(self, _value: str) -> None:
+        """Called when the SDK dropdown selection changes."""
+        self._update_sdk_auto_note()
+
+    def _update_sdk_auto_note(self) -> None:
+        """Update the auto-selection note based on game version and available SDKs."""
+        game_path = self._path_var.get().strip()
+        if not game_path or not self._sdk_entries:
+            if not self._sdk_entries:
+                self._sdk_note.set("")
+            return
+
+        game_ver = detect_renpy_version(game_path)
+        sdk_paths = [p for p, _ in self._sdk_entries]
+        matched = select_sdk(game_ver, sdk_paths)
+
+        if game_ver and matched:
+            matched_ver = detect_sdk_version(matched) or "?"
+            self._sdk_note.set(
+                f"Game uses Ren'Py {format_version(game_ver)} — SDK {matched_ver} will be used"
+            )
+            self._sdk_note_label.configure(text_color="#28A745")
+        elif game_ver:
+            self._sdk_note.set(
+                f"No SDK for Ren'Py {game_ver[0]}.x — regex parser will be used"
+            )
+            self._sdk_note_label.configure(text_color=TEXT_DIM)
+        else:
+            self._sdk_note.set("Could not detect game version")
+            self._sdk_note_label.configure(text_color=TEXT_DIM)
+
+    def _resolve_sdk_for_analysis(self, game_path: str) -> str | None:
+        """Resolve which SDK to use for a given game path.
+
+        If the dropdown is set to a specific SDK, use that one.
+        Otherwise, auto-select based on game version.
+        """
+        selected = self._sdk_dropdown_var.get()
+        if selected != _NO_SDK_LABEL:
+            # User explicitly selected an SDK
+            for path, ver in self._sdk_entries:
+                if f"{ver} — {path}" == selected:
+                    return path
+
+        # Auto-select: match game version to SDK major version
+        if not self._sdk_entries:
+            return None
+        game_ver = detect_renpy_version(game_path)
+        sdk_paths = [p for p, _ in self._sdk_entries]
+        return select_sdk(game_ver, sdk_paths)
 
     # -----------------------------------------------------------------------
     # UI construction
@@ -158,7 +283,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         ).pack(side="left", padx=(8, 0), pady=(6, 0))
 
     def _build_input_panel(self) -> None:
-        """Row 1: Game path + SDK path inputs."""
+        """Row 1: Game path + SDK manager."""
         panel = ctk.CTkFrame(self, fg_color=PANEL_BG, corner_radius=8)
         panel.grid(row=1, column=0, sticky="ew", padx=20, pady=(8, 0))
         panel.grid_columnconfigure(1, weight=1)
@@ -181,7 +306,7 @@ class RenpyAnalyzerApp(ctk.CTk):
             fg_color=PANEL_LIGHTER, hover_color=PANEL_BORDER,
             text_color=TEXT_PRIMARY, command=self._browse_folder,
         )
-        self._browse_game_btn.grid(row=0, column=2, padx=(4, 12), pady=(10, 2))
+        self._browse_game_btn.grid(row=0, column=2, columnspan=2, padx=(4, 12), pady=(10, 2))
 
         # Game dir note
         ctk.CTkLabel(
@@ -189,25 +314,42 @@ class RenpyAnalyzerApp(ctk.CTk):
             font=ctk.CTkFont(size=10), text_color="#28A745",
         ).grid(row=1, column=1, sticky="w", padx=4, pady=(0, 0))
 
-        # SDK path row
+        # SDK row: label + dropdown + Add + Remove
         ctk.CTkLabel(
-            panel, text="SDK Path:", font=ctk.CTkFont(size=12),
+            panel, text="SDK:", font=ctk.CTkFont(size=12),
             text_color=TEXT_PRIMARY,
         ).grid(row=2, column=0, sticky="w", padx=(12, 6), pady=(4, 2))
 
-        self._sdk_entry = ctk.CTkEntry(
-            panel, textvariable=self._sdk_path_var,
-            placeholder_text="(Optional) Ren'Py SDK folder for accurate parsing...",
-            fg_color=MIDNIGHT_BG, border_color=PANEL_BORDER, text_color=TEXT_PRIMARY,
+        self._sdk_dropdown = ctk.CTkOptionMenu(
+            panel,
+            values=self._sdk_dropdown_values(),
+            variable=self._sdk_dropdown_var,
+            command=self._on_sdk_dropdown_change,
+            fg_color=MIDNIGHT_BG,
+            button_color=PANEL_LIGHTER,
+            button_hover_color=PANEL_BORDER,
+            text_color=TEXT_PRIMARY,
+            font=ctk.CTkFont(size=12),
+            dropdown_fg_color=PANEL_BG,
+            dropdown_hover_color=PANEL_LIGHTER,
+            dropdown_text_color=TEXT_PRIMARY,
+            dynamic_resizing=False,
         )
-        self._sdk_entry.grid(row=2, column=1, sticky="ew", padx=4, pady=(4, 2))
+        self._sdk_dropdown.grid(row=2, column=1, sticky="ew", padx=4, pady=(4, 2))
 
-        self._browse_sdk_btn = ctk.CTkButton(
-            panel, text="Browse...", width=80, height=28,
+        self._add_sdk_btn = ctk.CTkButton(
+            panel, text="Add SDK...", width=90, height=28,
             fg_color=PANEL_LIGHTER, hover_color=PANEL_BORDER,
-            text_color=TEXT_PRIMARY, command=self._browse_sdk,
+            text_color=TEXT_PRIMARY, command=self._add_sdk,
         )
-        self._browse_sdk_btn.grid(row=2, column=2, padx=(4, 12), pady=(4, 2))
+        self._add_sdk_btn.grid(row=2, column=2, padx=(4, 2), pady=(4, 2))
+
+        self._remove_sdk_btn = ctk.CTkButton(
+            panel, text="Remove", width=70, height=28,
+            fg_color=PANEL_LIGHTER, hover_color="#DC3545",
+            text_color=TEXT_PRIMARY, command=self._remove_sdk,
+        )
+        self._remove_sdk_btn.grid(row=2, column=3, padx=(2, 12), pady=(4, 2))
 
         # SDK note
         self._sdk_note_label = ctk.CTkLabel(
@@ -309,7 +451,7 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._tree_frame,
             columns=col_ids,
             show="headings",
-            selectmode="browse",
+            selectmode="extended",
         )
 
         for col_id, heading, width, stretch, anchor in _TREE_COLUMNS:
@@ -326,8 +468,10 @@ class RenpyAnalyzerApp(ctk.CTk):
         scrollbar.grid(row=0, column=1, sticky="ns")
         self._tree.configure(yscrollcommand=scrollbar.set)
 
-        # Bind selection
+        # Bind selection + copy
         self._tree.bind("<<TreeviewSelect>>", self._on_tree_select)
+        self._tree.bind("<Control-c>", self._copy_selected_findings)
+        self._tree.bind("<Control-a>", self._select_all_findings)
 
         # --- Progress overlay ---
         self._progress_frame = ctk.CTkFrame(self._results_container, fg_color=PANEL_BG)
@@ -354,35 +498,34 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._cancel_btn.pack(pady=(4, 20))
 
     def _build_detail_panel(self) -> None:
-        """Row 5: Selected finding detail."""
-        self._detail_frame = ctk.CTkFrame(self, fg_color=PANEL_BG, corner_radius=8, height=100)
+        """Row 5: Selected finding detail (selectable/copyable text)."""
+        self._detail_frame = ctk.CTkFrame(self, fg_color=PANEL_BG, corner_radius=8, height=120)
         self._detail_frame.grid(row=5, column=0, sticky="ew", padx=20, pady=(8, 0))
         self._detail_frame.grid_propagate(False)
         self._detail_frame.grid_columnconfigure(0, weight=1)
+        self._detail_frame.grid_rowconfigure(0, weight=1)
 
-        self._detail_title = ctk.CTkLabel(
-            self._detail_frame, text="Select a finding to see details",
-            font=ctk.CTkFont(size=13, weight="bold"), text_color=TEXT_DIM,
-            anchor="w",
+        self._detail_text = ctk.CTkTextbox(
+            self._detail_frame,
+            font=ctk.CTkFont(size=14),
+            fg_color=PANEL_BG,
+            text_color=TEXT_PRIMARY,
+            border_width=0,
+            corner_radius=0,
+            wrap="word",
+            activate_scrollbars=False,
         )
-        self._detail_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(8, 0))
+        self._detail_text.grid(row=0, column=0, sticky="nsew", padx=8, pady=6)
+        self._detail_text.insert("1.0", "Select a finding to see details")
+        self._detail_text.configure(state="disabled")
 
-        self._detail_desc = ctk.CTkLabel(
-            self._detail_frame, text="",
-            font=ctk.CTkFont(size=12), text_color=TEXT_PRIMARY,
-            anchor="w", wraplength=750, justify="left",
-        )
-        self._detail_desc.grid(row=1, column=0, sticky="ew", padx=12, pady=(2, 0))
-
-        self._detail_suggestion = ctk.CTkLabel(
-            self._detail_frame, text="",
-            font=ctk.CTkFont(size=12), text_color="#28A745",
-            anchor="w", wraplength=750, justify="left",
-        )
-        self._detail_suggestion.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 8))
-
-        # Dynamic wraplength on resize
-        self._detail_frame.bind("<Configure>", self._on_detail_resize)
+        # Text tags for styling parts of the detail content
+        self._detail_text.tag_config("title", foreground=TEXT_DIM)
+        self._detail_text.tag_config("suggestion", foreground="#28A745")
+        for sev in Severity:
+            self._detail_text.tag_config(
+                f"title_{sev.name}", foreground=SEVERITY_COLORS[sev],
+            )
 
     def _build_status_bar(self) -> None:
         """Row 6: Status text."""
@@ -416,15 +559,15 @@ class RenpyAnalyzerApp(ctk.CTk):
             foreground=TEXT_PRIMARY,
             fieldbackground=PANEL_BG,
             borderwidth=0,
-            font=("Segoe UI", 12),
-            rowheight=28,
+            font=("Segoe UI", 14),
+            rowheight=32,
         )
         style.configure(
             "Treeview.Heading",
             background=PANEL_LIGHTER,
             foreground=TEXT_PRIMARY,
             borderwidth=0,
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", 14, "bold"),
         )
         style.map(
             "Treeview",
@@ -452,11 +595,6 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._tree.tag_configure(f"{sev.name}_even", foreground=color, background=PANEL_BG)
             self._tree.tag_configure(f"{sev.name}_odd", foreground=color, background=PANEL_LIGHTER)
 
-    def _on_detail_resize(self, event: tk.Event) -> None:
-        """Adjust detail label wraplength to match panel width."""
-        wrap = max(300, event.width - 28)
-        self._detail_desc.configure(wraplength=wrap)
-        self._detail_suggestion.configure(wraplength=wrap)
 
     # -----------------------------------------------------------------------
     # Actions
@@ -477,19 +615,7 @@ class RenpyAnalyzerApp(ctk.CTk):
                 self._game_dir_note.set("game/ subfolder detected — will scan automatically.")
             else:
                 self._game_dir_note.set("")
-
-    def _browse_sdk(self) -> None:
-        if self._is_busy():
-            return
-        folder = filedialog.askdirectory(title="Select Ren'Py SDK Folder")
-        if folder:
-            self._sdk_path_var.set(folder)
-            if validate_sdk_path(folder):
-                self._sdk_note.set("Valid SDK detected — will use SDK parser.")
-                self._sdk_note_label.configure(text_color="#28A745")
-            else:
-                self._sdk_note.set("Invalid SDK path — missing renpy/ or Python binary.")
-                self._sdk_note_label.configure(text_color="#DC3545")
+            self._update_sdk_auto_note()
 
     def _start_analysis(self) -> None:
         # Guard against double-click / re-entrant calls
@@ -509,10 +635,14 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._status_var.set("Please enable at least one check.")
             return
 
+        # Resolve SDK before starting the thread
+        self._resolved_sdk_path = self._resolve_sdk_for_analysis(project_path)
+
         self._analyze_btn.configure(state="disabled")
         self._export_btn.configure(state="disabled")
         self._browse_game_btn.configure(state="disabled")
-        self._browse_sdk_btn.configure(state="disabled")
+        self._add_sdk_btn.configure(state="disabled")
+        self._remove_sdk_btn.configure(state="disabled")
         self._tree.delete(*self._tree.get_children())
 
         self._cancel_event.clear()
@@ -532,7 +662,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._analysis_thread.start()
 
     def _run_analysis(self, project_path: str, enabled_checks: list[str]) -> None:
-        sdk_path = self._sdk_path_var.get().strip() or None
+        sdk_path = self._resolved_sdk_path
         try:
             findings = run_analysis(
                 project_path,
@@ -566,7 +696,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._tree_frame.grid(row=0, column=0, sticky="nsew")
         self._analyze_btn.configure(state="normal")
         self._browse_game_btn.configure(state="normal")
-        self._browse_sdk_btn.configure(state="normal")
+        self._add_sdk_btn.configure(state="normal")
+        self._remove_sdk_btn.configure(state="normal")
 
     def _analysis_complete(self, findings: list[Finding], project_path: str) -> None:
         self._findings = findings
@@ -584,7 +715,7 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Status bar
         total = len(findings)
-        parser_label = "(SDK parser)" if self._sdk_path_var.get().strip() else "(regex parser)"
+        parser_label = "(SDK parser)" if self._resolved_sdk_path else "(regex parser)"
         if total == 0:
             self._status_var.set(f"Analysis complete {parser_label} — no issues found!")
         else:
@@ -656,9 +787,10 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Clear selection to prevent stale iid → wrong finding in detail panel
         self._tree.selection_set([])
-        self._detail_title.configure(text="Select a finding to see details", text_color=TEXT_DIM)
-        self._detail_desc.configure(text="")
-        self._detail_suggestion.configure(text="")
+        self._detail_text.configure(state="normal")
+        self._detail_text.delete("1.0", "end")
+        self._detail_text.insert("1.0", "Select a finding to see details", "title")
+        self._detail_text.configure(state="disabled")
 
     def _sort_by_column(self, col: str) -> None:
         """Toggle sort direction on column click."""
@@ -687,29 +819,79 @@ class RenpyAnalyzerApp(ctk.CTk):
                 text_color="#FFFFFF" if active else TEXT_DIM,
             )
 
-    def _on_tree_select(self, _event: tk.Event) -> None:
-        """Show selected finding's detail in the panel below."""
-        selection = self._tree.selection()
-        if not selection:
-            return
-        try:
-            idx = int(selection[0])
-        except (ValueError, IndexError):
-            return
-        if idx < 0 or idx >= len(self._filtered_findings):
-            return
-        f = self._filtered_findings[idx]
+    def _get_selected_findings(self) -> list[Finding]:
+        """Return Finding objects for all selected treeview rows."""
+        findings: list[Finding] = []
+        for iid in self._tree.selection():
+            try:
+                idx = int(iid)
+            except (ValueError, IndexError):
+                continue
+            if 0 <= idx < len(self._filtered_findings):
+                findings.append(self._filtered_findings[idx])
+        return findings
 
-        sev_color = SEVERITY_COLORS.get(f.severity, TEXT_PRIMARY)
-        self._detail_title.configure(
-            text=f"[{f.severity.name}] {f.title}",
-            text_color=sev_color,
-        )
-        self._detail_desc.configure(text=f.description if f.description else "")
-        if f.suggestion:
-            self._detail_suggestion.configure(text=f"Suggestion: {f.suggestion}")
+    def _on_tree_select(self, _event: tk.Event) -> None:
+        """Show selected finding(s) detail in the panel below."""
+        selected = self._get_selected_findings()
+        if not selected:
+            return
+
+        self._detail_text.configure(state="normal")
+        self._detail_text.delete("1.0", "end")
+
+        if len(selected) == 1:
+            f = selected[0]
+            title_tag = f"title_{f.severity.name}"
+            self._detail_text.insert("end", f"[{f.severity.name}] {f.title}", title_tag)
+            if f.description:
+                self._detail_text.insert("end", f"\n\n{f.description}")
+            if f.suggestion:
+                self._detail_text.insert("end", f"\n\nSuggestion: {f.suggestion}", "suggestion")
         else:
-            self._detail_suggestion.configure(text="")
+            self._detail_text.insert(
+                "end",
+                f"{len(selected)} findings selected — Ctrl+C to copy\n\n",
+                "title",
+            )
+            for i, f in enumerate(selected):
+                if i > 0:
+                    self._detail_text.insert("end", "\n")
+                title_tag = f"title_{f.severity.name}"
+                self._detail_text.insert(
+                    "end",
+                    f"[{f.severity.name}] {f.title}  —  {f.file}:{f.line}",
+                    title_tag,
+                )
+
+        self._detail_text.configure(state="disabled")
+
+    def _format_finding_text(self, f: Finding) -> str:
+        """Format a single finding as copyable plain text."""
+        lines = [f"[{f.severity.name}] {f.title}  —  {f.file}:{f.line}"]
+        if f.description:
+            lines.append(f.description)
+        if f.suggestion:
+            lines.append(f"Suggestion: {f.suggestion}")
+        return "\n".join(lines)
+
+    def _copy_selected_findings(self, _event: tk.Event) -> str:
+        """Copy all selected findings to clipboard as formatted text."""
+        selected = self._get_selected_findings()
+        if not selected:
+            return "break"
+        text = "\n\n".join(self._format_finding_text(f) for f in selected)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self._status_var.set(f"Copied {len(selected)} finding(s) to clipboard.")
+        return "break"
+
+    def _select_all_findings(self, _event: tk.Event) -> str:
+        """Select all rows in the treeview."""
+        all_items = self._tree.get_children()
+        if all_items:
+            self._tree.selection_set(all_items)
+        return "break"
 
     # -----------------------------------------------------------------------
     # PDF export
@@ -777,7 +959,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         """Persist current state to settings file."""
         try:
             self._settings.game_path = self._path_var.get()
-            self._settings.sdk_path = self._sdk_path_var.get()
+            self._settings.sdk_paths = [p for p, _ in self._sdk_entries]
         except Exception:
             logger.debug("Could not read path variables during save", exc_info=True)
 

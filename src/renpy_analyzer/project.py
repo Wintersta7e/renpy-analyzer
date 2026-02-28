@@ -117,10 +117,12 @@ def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, s
     file_paths = [str(f) for f in rpy_files]
     raw_results = parse_files_with_sdk(file_paths, str(scan_dir), sdk_path)
 
+    sdk_skipped = 0
     for rpy_file in rpy_files:
         file_key = str(rpy_file)
         if file_key not in raw_results:
-            logger.warning("SDK parser returned no result for %s", rpy_file)
+            sdk_skipped += 1
+            logger.warning("SDK parser skipped %s — file not in results", rpy_file)
             continue
         result = convert_file_result(raw_results[file_key], file_key)
         try:
@@ -130,6 +132,12 @@ def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, s
         except OSError:
             pass
         _merge_result(model, result, rpy_file, scan_dir)
+
+    if sdk_skipped:
+        logger.warning(
+            "SDK parser skipped %d/%d files",
+            sdk_skipped, len(rpy_files),
+        )
 
 
 def _merge_result(model: ProjectModel, result: dict, rpy_file: Path, scan_dir: Path) -> None:

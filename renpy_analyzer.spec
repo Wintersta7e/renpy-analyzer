@@ -45,6 +45,7 @@ a = Analysis(
         'renpy_analyzer.log',
         'renpy_analyzer.analyzer',
         'renpy_analyzer.sdk_bridge',
+        'renpy_analyzer.version',
         'renpy_analyzer.report',
         'renpy_analyzer.report.pdf',
         'platformdirs',
