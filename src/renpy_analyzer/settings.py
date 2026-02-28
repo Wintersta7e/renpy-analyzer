@@ -19,7 +19,7 @@ _SETTINGS_FILE = "settings.json"
 
 # Fields that Settings.__init__ accepts (used to filter unknown keys)
 _KNOWN_FIELDS = frozenset({
-    "sdk_path",
+    "sdk_paths",
     "game_path",
     "window_geometry",
     "check_toggles",
@@ -30,7 +30,7 @@ _KNOWN_FIELDS = frozenset({
 
 # Expected types for each field — used to reject wrong-typed values from JSON
 _FIELD_TYPES: dict[str, type] = {
-    "sdk_path": str,
+    "sdk_paths": list,
     "game_path": str,
     "window_geometry": str,
     "check_toggles": dict,
@@ -49,7 +49,7 @@ def _config_path() -> Path:
 class Settings:
     """User-persistent settings stored as JSON."""
 
-    sdk_path: str = ""
+    sdk_paths: list[str] = field(default_factory=list)
     game_path: str = ""
     window_geometry: str = "1050x780"
     check_toggles: dict[str, bool] = field(default_factory=dict)
@@ -81,7 +81,11 @@ class Settings:
 
     @classmethod
     def load(cls) -> Settings:
-        """Load settings from disk.  Returns defaults on any failure."""
+        """Load settings from disk.  Returns defaults on any failure.
+
+        Handles migration from the old ``sdk_path`` (string) field to the
+        new ``sdk_paths`` (list) field automatically.
+        """
         try:
             filepath = _config_path() / _SETTINGS_FILE
             if not filepath.exists():
@@ -90,6 +94,19 @@ class Settings:
             if not isinstance(data, dict):
                 logger.warning("Settings file has invalid format, using defaults")
                 return cls()
+
+            # --- Migration: old sdk_path (str) → sdk_paths (list) ---
+            if "sdk_path" in data and "sdk_paths" not in data:
+                old_val = data.pop("sdk_path")
+                if isinstance(old_val, str) and old_val:
+                    data["sdk_paths"] = [old_val]
+                    logger.info("Migrated sdk_path → sdk_paths: %s", old_val)
+                else:
+                    data["sdk_paths"] = []
+            elif "sdk_path" in data:
+                # Both keys present — drop the old one
+                data.pop("sdk_path")
+
             # Filter to known fields with correct types (forward-compatible)
             filtered: dict[str, object] = {}
             for k, v in data.items():
@@ -100,7 +117,11 @@ class Settings:
                         if type(v) is bool:
                             filtered[k] = v
                     elif isinstance(v, expected):
-                        filtered[k] = v
+                        # For sdk_paths, validate that all elements are strings
+                        if k == "sdk_paths" and isinstance(v, list):
+                            filtered[k] = [s for s in v if isinstance(s, str)]
+                        else:
+                            filtered[k] = v
             return cls(**filtered)  # type: ignore[arg-type]
         except json.JSONDecodeError:
             logger.warning("Settings file is corrupted, using defaults: %s", _config_path() / _SETTINGS_FILE)
