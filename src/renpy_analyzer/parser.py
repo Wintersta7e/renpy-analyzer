@@ -196,7 +196,7 @@ def parse_file(filepath: str) -> dict:
                     has_return=False,
                     condition=m.group(3),
                 )
-                choice_indent = _get_indent(line) + (_get_indent(line) - menu_indent)
+                choice_indent = _get_indent(line) + 1
             elif current_choice is not None and indent >= choice_indent:
                 current_choice.content_lines += 1
                 stripped = line.strip()

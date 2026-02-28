@@ -24,7 +24,13 @@ def check(project: ProjectModel) -> list[Finding]:
             bool_val = m.group(4)
 
             prefix = expr[: m.start()]
-            if re.search(r"==\s*$", prefix):
+            # Skip if preceded by a comparison operator — partial expression
+            # e.g. "Temp1 >=2 and X == False" → the "2" is not a standalone var
+            if re.search(r"(==|!=|>=|<=|[><])\s*$", prefix):
+                continue
+            # Skip if preceded by 'not' — e.g. "not _in_replay and X == False"
+            # is correctly parsed as (not _in_replay) and (X == False)
+            if re.search(r"\bnot\s+$", prefix):
                 continue
 
             findings.append(
