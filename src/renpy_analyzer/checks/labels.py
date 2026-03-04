@@ -4,6 +4,17 @@ from __future__ import annotations
 
 from ..models import Finding, ProjectModel, Severity
 
+ENGINE_LABELS = frozenset({
+    "start",
+    "after_load",
+    "splashscreen",
+    "before_main_menu",
+    "main_menu",
+    "quit",
+    "after_warp",
+    "hide_windows",
+})
+
 
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
@@ -92,5 +103,32 @@ def check(project: ProjectModel) -> list[Finding]:
                 suggestion="Consider using a direct label name if the target is known at write time.",
             )
         )
+
+    # Unused labels — skip if dynamic jumps/calls exist (targets could be computed)
+    if not project.dynamic_jumps:
+        referenced: set[str] = set()
+        for jump in project.jumps:
+            referenced.add(jump.target)
+        for call in project.calls:
+            referenced.add(call.target)
+
+        for name, defs in label_names.items():
+            if name in ENGINE_LABELS or name in referenced:
+                continue
+            label = defs[0]
+            findings.append(
+                Finding(
+                    severity=Severity.LOW,
+                    check_name="labels",
+                    title=f"Unused label '{name}'",
+                    description=(
+                        f"Label '{name}' at {label.file}:{label.line} is never "
+                        f"referenced by any jump or call statement."
+                    ),
+                    file=label.file,
+                    line=label.line,
+                    suggestion="Remove if no longer needed, or verify it's reached via dynamic jump/call.",
+                )
+            )
 
     return findings
