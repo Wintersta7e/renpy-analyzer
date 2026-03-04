@@ -13,7 +13,9 @@ from . import (
     labels,
     logic,
     menus,
+    nvl,
     persistent,
+    replay,
     screens,
     structure,
     texttags,
@@ -39,4 +41,6 @@ ALL_CHECKS = {
     "Empty Labels": emptylabels.check,
     "Persistent Vars": persistent.check,
     "Project Structure": structure.check,
+    "Replay": replay.check,
+    "NVL": nvl.check,
 }

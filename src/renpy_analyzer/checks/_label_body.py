@@ -14,6 +14,7 @@ logger = logging.getLogger("renpy_analyzer.checks._label_body")
 RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*(?:\(.*\))?\s*:")
 RE_RETURN = re.compile(r"^\s+return\b")
 RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
+RE_END_REPLAY = re.compile(r"renpy\.end_replay\s*\(")
 RE_TOP_LEVEL = re.compile(r"^(?:label|init|screen|transform|define|default|style|python|image)\b")
 
 
@@ -25,6 +26,7 @@ class LabelBody:
     body_lines: int = 0
     has_return: bool = False
     ends_with_jump: bool = False
+    has_end_replay: bool = False
     only_pass: bool = False
     jump_targets: list[str] = field(default_factory=list)
 
@@ -104,6 +106,9 @@ def _analyze_file(lines: list[str], rel_path: str, result: dict[str, LabelBody])
 
             if RE_RETURN.match(raw):
                 body.has_return = True
+
+            if RE_END_REPLAY.search(raw):
+                body.has_end_replay = True
 
             m_jump = RE_JUMP.match(raw)
             if m_jump:
