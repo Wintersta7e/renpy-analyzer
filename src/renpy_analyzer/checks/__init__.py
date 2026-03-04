@@ -15,6 +15,7 @@ from . import (
     menus,
     persistent,
     screens,
+    structure,
     texttags,
     transforms,
     translations,
@@ -37,4 +38,5 @@ ALL_CHECKS = {
     "Call Cycles": callcycle.check,
     "Empty Labels": emptylabels.check,
     "Persistent Vars": persistent.check,
+    "Project Structure": structure.check,
 }
