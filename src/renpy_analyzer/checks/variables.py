@@ -84,6 +84,7 @@ def check(project: ProjectModel) -> list[Finding]:
     _check_persistent_define(project, findings)
     _check_builtin_shadowing(project, findings)
     _check_config_runtime_mutation(project, findings)
+    _check_unpicklable_store(project, findings)
 
     return findings
 
@@ -290,6 +291,35 @@ def _check_config_runtime_mutation(project: ProjectModel, findings: list[Finding
                     suggestion="Move this assignment to an 'init python:' block.",
                 )
             )
+
+
+RE_UNPICKLABLE = re.compile(
+    r"^\s*(?:lambda\b|open\s*\(|(?:iter|generator|zip|map|filter|reversed)\s*\()"
+)
+
+
+def _check_unpicklable_store(project: ProjectModel, findings: list[Finding]) -> None:
+    """Detect values that cannot be serialized by Ren'Py save system."""
+    for var in project.variables:
+        if var.kind not in ("default", "assign") or var.value is None:
+            continue
+        if not RE_UNPICKLABLE.search(var.value):
+            continue
+        findings.append(
+            Finding(
+                severity=Severity.HIGH,
+                check_name="variables",
+                title=f"Non-serializable value assigned to '{var.name}'",
+                description=(
+                    f"'{var.name}' at {var.file}:{var.line} is assigned a value "
+                    f"that cannot be saved ({var.value[:60]}). Ren'Py saves game "
+                    f"state by serializing store variables — this will crash on save."
+                ),
+                file=var.file,
+                line=var.line,
+                suggestion="Store the result of the call instead, or move to an init python block.",
+            )
+        )
 
 
 def _check_builtin_shadowing(project: ProjectModel, findings: list[Finding]) -> None:
