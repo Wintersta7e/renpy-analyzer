@@ -83,6 +83,7 @@ def check(project: ProjectModel) -> list[Finding]:
     _check_define_mutation(project, findings)
     _check_persistent_define(project, findings)
     _check_builtin_shadowing(project, findings)
+    _check_config_runtime_mutation(project, findings)
 
     return findings
 
@@ -267,6 +268,26 @@ def _check_persistent_define(project: ProjectModel, findings: list[Finding]) -> 
                     file=var.file,
                     line=var.line,
                     suggestion=f"Change 'define {var.name}' to 'default {var.name}'.",
+                )
+            )
+
+
+def _check_config_runtime_mutation(project: ProjectModel, findings: list[Finding]) -> None:
+    for var in project.variables:
+        if var.name.startswith("config.") and var.kind in ("assign", "augment") and not var.in_init:
+            findings.append(
+                Finding(
+                    severity=Severity.MEDIUM,
+                    check_name="variables",
+                    title=f"config variable '{var.name}' modified at runtime",
+                    description=(
+                        f"'{var.name}' is modified at {var.file}:{var.line} outside of an "
+                        f"init block. Ren'Py assumes config variables are constant after "
+                        f"initialization — modifying them at runtime causes undefined behavior."
+                    ),
+                    file=var.file,
+                    line=var.line,
+                    suggestion="Move this assignment to an 'init python:' block.",
                 )
             )
 
