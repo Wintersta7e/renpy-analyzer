@@ -59,8 +59,12 @@ RE_AT_TRANSFORM = re.compile(r"\bat\s+(\w+)")
 RE_TRANSLATE = re.compile(r"^translate\s+(\w+)\s+(\w+)\s*:")
 RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"((?:[^"\\]|\\.)*)"')
 RE_DIALOGUE_FALLBACK = re.compile(r'^(\s+)(\w+)\s+"')
+RE_NARRATOR = re.compile(r'^(\s+)"((?:[^"\\]|\\.)*)"')
+RE_NARRATOR_FALLBACK = re.compile(r'^(\s+)"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
+RE_INIT_BLOCK = re.compile(r"^init\s+(?:(-?\d+)\s+)?python\s*:")
+RE_INIT_LABEL = re.compile(r"^init\s*:")
 
 RENPY_KEYWORDS = frozenset(
     {
@@ -159,6 +163,10 @@ def parse_file(filepath: str) -> dict:
     current_choice: MenuChoice | None = None
     choice_indent: int = 0
 
+    # Init context tracking
+    in_init: bool = False
+    init_indent: int = -1
+
     for lineno_0, raw_line in enumerate(lines):
         lineno = lineno_0 + 1
         line = raw_line.rstrip()
@@ -167,6 +175,22 @@ def parse_file(filepath: str) -> dict:
             continue
 
         indent = _get_indent(line)
+
+        # --- Init context tracking ---
+        if in_init and indent <= init_indent:
+            in_init = False
+            init_indent = -1
+
+        if indent == 0:
+            m = RE_INIT_BLOCK.match(line)
+            if m:
+                in_init = True
+                init_indent = 0
+            else:
+                m = RE_INIT_LABEL.match(line)
+                if m:
+                    in_init = True
+                    init_indent = 0
 
         # --- Menu state tracking ---
         # Close any menus whose indent level has been exceeded
@@ -321,6 +345,7 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                     kind=var_kind,
                     value=line.split("=", 1)[1].strip(),
+                    in_init=in_init,
                 )
             )
             continue
@@ -360,6 +385,7 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                     kind="default",
                     value=m.group(2).strip(),
+                    in_init=in_init,
                 )
             )
             continue
@@ -374,6 +400,7 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                     kind="define",
                     value=m.group(2).strip(),
+                    in_init=in_init,
                 )
             )
             continue
@@ -387,6 +414,7 @@ def parse_file(filepath: str) -> dict:
                     file=display_path,
                     line=lineno,
                     kind="augment",
+                    in_init=in_init,
                 )
             )
             continue
@@ -404,6 +432,7 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                     kind="assign",
                     value=m.group(2).strip(),
+                    in_init=in_init,
                 )
             )
             continue
@@ -540,6 +569,28 @@ def parse_file(filepath: str) -> dict:
                             line=lineno,
                         )
                     )
+            else:
+                # --- Narrator dialogue (bare "text" with no speaker) ---
+                m = RE_NARRATOR.match(line)
+                if m:
+                    dialogue.append(
+                        DialogueLine(
+                            speaker="",
+                            file=display_path,
+                            line=lineno,
+                            text=m.group(2),
+                        )
+                    )
+                else:
+                    m = RE_NARRATOR_FALLBACK.match(line)
+                    if m:
+                        dialogue.append(
+                            DialogueLine(
+                                speaker="",
+                                file=display_path,
+                                line=lineno,
+                            )
+                        )
 
     # Finalize any in-progress menus at end of file (drain the entire stack)
     while current_menu is not None:

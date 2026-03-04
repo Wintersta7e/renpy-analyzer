@@ -54,6 +54,7 @@ class Variable:
     line: int
     kind: str  # "default", "define", "assign", "augment"
     value: str | None = None
+    in_init: bool = False
 
 
 @dataclass
