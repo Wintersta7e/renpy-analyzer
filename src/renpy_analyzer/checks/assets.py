@@ -87,7 +87,33 @@ def check(project: ProjectModel) -> list[Finding]:
         rel_path = ref.path.lstrip("/")
         _check_file_reference(root, rel_path, "Audio", ref.file, ref.line, findings)
 
+    # Check MP3 used for looping music
+    _check_mp3_music(project, findings)
+
     return findings
+
+
+def _check_mp3_music(project: ProjectModel, findings: list[Finding]) -> None:
+    """Flag MP3 files used for music — they have audible gaps when looping."""
+    for ref in project.music:
+        if ref.action not in ("play", "queue"):
+            continue
+        if ref.path.lower().endswith(".mp3"):
+            findings.append(
+                Finding(
+                    severity=Severity.STYLE,
+                    check_name="assets",
+                    title="MP3 used for music (audible loop gap)",
+                    description=(
+                        f"'{ref.path}' at {ref.file}:{ref.line} is an MP3 file. "
+                        f"MP3 encoders add silence padding at the start and end of files, "
+                        f"causing an audible gap when music loops."
+                    ),
+                    file=ref.file,
+                    line=ref.line,
+                    suggestion="Convert to OGG Vorbis or Opus for seamless looping.",
+                )
+            )
 
 
 def _check_file_reference(
