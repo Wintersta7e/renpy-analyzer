@@ -1,10 +1,14 @@
-"""Check for translation issues: duplicate entries, incomplete coverage."""
+"""Check for translation issues: duplicate entries, incomplete coverage, folder casing."""
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
+from pathlib import Path
 
 from ..models import Finding, ProjectModel, Severity
+
+logger = logging.getLogger("renpy_analyzer.checks.translations")
 
 
 def check(project: ProjectModel) -> list[Finding]:
@@ -77,4 +81,49 @@ def check(project: ProjectModel) -> list[Finding]:
                     )
                 )
 
+    # Translation folder case mismatch
+    _check_folder_case(project, by_language, findings)
+
     return findings
+
+
+def _check_folder_case(
+    project: ProjectModel,
+    by_language: dict[str, list],
+    findings: list[Finding],
+) -> None:
+    """Check that tl/ subdirectory names match translation block language names."""
+    tl_dir = Path(project.root_dir) / "tl"
+    if not tl_dir.is_dir():
+        return
+
+    try:
+        actual_dirs = {d.name for d in tl_dir.iterdir() if d.is_dir()}
+    except OSError:
+        logger.warning("Cannot list translation directory %s", tl_dir, exc_info=True)
+        return
+
+    # Build case-insensitive map of actual directory names
+    dir_lower_map: dict[str, str] = {d.lower(): d for d in actual_dirs}
+
+    for lang in by_language:
+        if lang in actual_dirs:
+            continue  # Exact match — fine
+        if lang.lower() in dir_lower_map:
+            actual = dir_lower_map[lang.lower()]
+            first_block = by_language[lang][0]
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="translations",
+                    title=f"Translation folder case mismatch for '{lang}'",
+                    description=(
+                        f"Translation blocks use language '{lang}' but the folder "
+                        f"is named 'tl/{actual}'. Ren'Py matches case-sensitively — "
+                        f"the entire translation will silently fail to load."
+                    ),
+                    file=first_block.file,
+                    line=first_block.line,
+                    suggestion=f"Rename 'tl/{actual}' to 'tl/{lang}' (or vice versa).",
+                )
+            )
