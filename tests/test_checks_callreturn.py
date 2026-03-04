@@ -27,8 +27,8 @@ def test_call_to_label_with_return(tmp_path):
     assert len(findings) == 0
 
 
-def test_call_to_label_without_return(tmp_path):
-    """Call to a label that ends with jump — CRITICAL finding."""
+def test_call_to_label_that_jumps(tmp_path):
+    """Call to a label that ends with jump — HIGH finding (stack leak)."""
     model = _project(tmp_path, """\
         label start:
             call helper
@@ -41,8 +41,9 @@ def test_call_to_label_without_return(tmp_path):
     """)
     findings = check(model)
     assert len(findings) == 1
-    assert findings[0].severity.name == "CRITICAL"
+    assert findings[0].severity.name == "HIGH"
     assert "helper" in findings[0].title
+    assert "jumps instead" in findings[0].title
     assert findings[0].check_name == "callreturn"
 
 

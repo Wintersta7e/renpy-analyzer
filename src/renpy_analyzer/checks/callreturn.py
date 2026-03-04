@@ -22,21 +22,40 @@ def check(project: ProjectModel) -> list[Finding]:
             continue
 
         if not body.has_return:
-            findings.append(
-                Finding(
-                    severity=Severity.CRITICAL,
-                    check_name="callreturn",
-                    title=f"Called label '{target}' never returns",
-                    description=(
-                        f"'call {target}' at {call.file}:{call.line} targets a label "
-                        f"that has no 'return' statement. In Ren'Py, 'call' pushes onto "
-                        f"the call stack, and without 'return', the stack frame is never "
-                        f"popped. Over many calls, this causes a stack overflow crash."
-                    ),
-                    file=call.file,
-                    line=call.line,
-                    suggestion=f"Add a 'return' statement at the end of label '{target}', or use 'jump' instead of 'call' if you don't need to return.",
+            if body.ends_with_jump:
+                # Label ends with jump — stack frame leaks
+                findings.append(
+                    Finding(
+                        severity=Severity.HIGH,
+                        check_name="callreturn",
+                        title=f"Called label '{target}' jumps instead of returning",
+                        description=(
+                            f"'call {target}' at {call.file}:{call.line} targets a label "
+                            f"that ends with a 'jump' instead of 'return'. The call stack "
+                            f"frame is never popped — over many calls this leaks memory "
+                            f"and eventually crashes."
+                        ),
+                        file=call.file,
+                        line=call.line,
+                        suggestion=f"Replace 'jump' with 'return' at the end of label '{target}', or use 'jump' instead of 'call' at the call site.",
+                    )
                 )
-            )
+            else:
+                findings.append(
+                    Finding(
+                        severity=Severity.CRITICAL,
+                        check_name="callreturn",
+                        title=f"Called label '{target}' never returns",
+                        description=(
+                            f"'call {target}' at {call.file}:{call.line} targets a label "
+                            f"that has no 'return' statement. In Ren'Py, 'call' pushes onto "
+                            f"the call stack, and without 'return', the stack frame is never "
+                            f"popped. Over many calls, this causes a stack overflow crash."
+                        ),
+                        file=call.file,
+                        line=call.line,
+                        suggestion=f"Add a 'return' statement at the end of label '{target}', or use 'jump' instead of 'call' if you don't need to return.",
+                    )
+                )
 
     return findings
