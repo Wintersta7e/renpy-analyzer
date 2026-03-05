@@ -29,20 +29,20 @@ from .models import (
 
 # --- Regex patterns ---
 
-RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*(?:\(.*\))?\s*:")
+RE_LABEL = re.compile(r"^(\s*)label\s+(\.?\w+)\s*(?:\(.*\))?\s*:")
 RE_JUMP_EXPR = re.compile(r"^\s+jump\s+expression\s+(.+)")
 RE_CALL_EXPR = re.compile(r"^\s+call\s+expression\s+(.+)")
-RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
-RE_CALL = re.compile(r"^\s+call\s+(\w+)")
+RE_JUMP = re.compile(r"^\s+jump\s+([\w.]+)")
+RE_CALL = re.compile(r"^\s+call\s+([\w.]+)")
 RE_DEFAULT = re.compile(r"^\s*default\s+([\w.]+)\s*=\s*(.+)")
 RE_DEFINE = re.compile(r"^\s*define\s+([\w.]+)\s*=\s*(.+)")
 RE_ASSIGN = re.compile(r"^\s*\$\s+([\w.]+)\s*=\s*(.+)")
 RE_AUGMENT = re.compile(r"^\s*\$\s+([\w.]+)\s*[+\-*/]=\s*(.+)")
 RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"([^"]*)"')
 RE_SCENE = re.compile(
-    r"^\s+scene\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?"
+    r"^\s+scene\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?"
 )
-RE_SHOW = re.compile(r"^\s+show\s+([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
+RE_SHOW = re.compile(r"^\s+show\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
 RE_MUSIC_PLAY = re.compile(r'^\s+play\s+music\s+"([^"]+)"')
@@ -55,7 +55,7 @@ RE_MENU_CHOICE = re.compile(r'^(\s+)"([^"]+)"(?:\s+if\s+(.+?))?\s*:')
 RE_SCREEN_DEF = re.compile(r"^screen\s+(\w+)")
 RE_SCREEN_REF = re.compile(r"^\s+(show|call|hide)\s+screen\s+(\w+)")
 RE_TRANSFORM_DEF = re.compile(r"^transform\s+(\w+)")
-RE_AT_TRANSFORM = re.compile(r"\bat\s+(\w+)")
+RE_AT_TRANSFORM = re.compile(r"\bat\s+((?:\w+)(?:\s*,\s*\w+)*)")
 RE_TRANSLATE = re.compile(r"^translate\s+(\w+)\s+(\w+)\s*:")
 RE_DIALOGUE = re.compile(r'^(\s+)(\w+)\s+"((?:[^"\\]|\\.)*)"')
 RE_DIALOGUE_FALLBACK = re.compile(r'^(\s+)(\w+)\s+"')
@@ -63,8 +63,8 @@ RE_NARRATOR = re.compile(r'^(\s+)"((?:[^"\\]|\\.)*)"')
 RE_NARRATOR_FALLBACK = re.compile(r'^(\s+)"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
-RE_INIT_BLOCK = re.compile(r"^init\s+(?:(-?\d+)\s+)?python\s*:")
-RE_INIT_LABEL = re.compile(r"^init\s*:")
+RE_INIT_BLOCK = re.compile(r"^init\s+(?:(-?\d+)\s+)?python(?:\s+early)?\s*:")
+RE_INIT_LABEL = re.compile(r"^init(?:\s+-?\d+)?\s*:")
 
 RENPY_KEYWORDS = frozenset(
     {
@@ -167,6 +167,10 @@ def parse_file(filepath: str) -> dict:
     in_init: bool = False
     init_indent: int = -1
 
+    # Screen context tracking — skip variables/dialogue inside screen blocks
+    in_screen: bool = False
+    screen_indent: int = -1
+
     for lineno_0, raw_line in enumerate(lines):
         lineno = lineno_0 + 1
         line = raw_line.rstrip()
@@ -180,6 +184,11 @@ def parse_file(filepath: str) -> dict:
         if in_init and indent <= init_indent:
             in_init = False
             init_indent = -1
+
+        # --- Screen context tracking ---
+        if in_screen and indent <= screen_indent:
+            in_screen = False
+            screen_indent = -1
 
         if indent == 0:
             m = RE_INIT_BLOCK.match(line)
@@ -233,6 +242,8 @@ def parse_file(filepath: str) -> dict:
         m = RE_SCREEN_DEF.match(line)
         if m and indent == 0:
             screen_defs.append(ScreenDef(name=m.group(1), file=display_path, line=lineno))
+            in_screen = True
+            screen_indent = 0
             continue
 
         # --- Transform definition (column 0) ---
@@ -375,9 +386,9 @@ def parse_file(filepath: str) -> dict:
             )
             continue
 
-        # --- Default variable ---
+        # --- Default variable (skip screen-local defaults) ---
         m = RE_DEFAULT.match(line)
-        if m:
+        if m and not in_screen:
             variables.append(
                 Variable(
                     name=m.group(1),
@@ -392,7 +403,7 @@ def parse_file(filepath: str) -> dict:
 
         # --- Define (non-character) ---
         m = RE_DEFINE.match(line)
-        if m:
+        if m and not in_screen:
             variables.append(
                 Variable(
                     name=m.group(1),
@@ -405,9 +416,9 @@ def parse_file(filepath: str) -> dict:
             )
             continue
 
-        # --- Python augmented assignment ---
+        # --- Python augmented assignment (skip inside screens) ---
         m = RE_AUGMENT.match(line)
-        if m:
+        if m and not in_screen:
             variables.append(
                 Variable(
                     name=m.group(1),
@@ -419,12 +430,12 @@ def parse_file(filepath: str) -> dict:
             )
             continue
 
-        # --- Python assignment (skip function calls) ---
+        # --- Python assignment (skip function calls and screen blocks) ---
         if RE_PYTHON_CALL.match(line):
             continue
 
         m = RE_ASSIGN.match(line)
-        if m:
+        if m and not in_screen:
             variables.append(
                 Variable(
                     name=m.group(1),
@@ -450,7 +461,8 @@ def parse_file(filepath: str) -> dict:
             )
             at_m = RE_AT_TRANSFORM.search(line)
             if at_m:
-                transform_refs.append(TransformRef(name=at_m.group(1), file=display_path, line=lineno))
+                for tf_name in re.findall(r"\w+", at_m.group(1)):
+                    transform_refs.append(TransformRef(name=tf_name, file=display_path, line=lineno))
             continue
 
         # --- Show ---
@@ -465,7 +477,8 @@ def parse_file(filepath: str) -> dict:
             )
             at_m = RE_AT_TRANSFORM.search(line)
             if at_m:
-                transform_refs.append(TransformRef(name=at_m.group(1), file=display_path, line=lineno))
+                for tf_name in re.findall(r"\w+", at_m.group(1)):
+                    transform_refs.append(TransformRef(name=tf_name, file=display_path, line=lineno))
             continue
 
         # --- Music play ---
@@ -543,8 +556,12 @@ def parse_file(filepath: str) -> dict:
                     line=lineno,
                 )
             )
+            continue
 
-        # --- Dialogue ---
+        # --- Dialogue (skip inside screens — bare strings are display text) ---
+        if in_screen:
+            continue
+
         m = RE_DIALOGUE.match(line)
         if m:
             speaker = m.group(2)

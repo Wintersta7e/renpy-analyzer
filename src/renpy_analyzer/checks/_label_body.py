@@ -8,10 +8,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..models import ProjectModel
+from ..parser import RE_LABEL
 
 logger = logging.getLogger("renpy_analyzer.checks._label_body")
-
-RE_LABEL = re.compile(r"^(\s*)label\s+(\w+)\s*(?:\(.*\))?\s*:")
 RE_RETURN = re.compile(r"^\s+return\b")
 RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
 RE_END_REPLAY = re.compile(r"renpy\.end_replay\s*\(")
@@ -73,12 +72,15 @@ def _analyze_file(lines: list[str], rel_path: str, result: dict[str, LabelBody])
         if name in result:
             continue  # keep first occurrence
 
-        # Determine body range: from line after label to next label/top-level/EOF
+        # Determine body range: from line after label to next label at same or
+        # lower indent level, or EOF. Sublabels (deeper indent) don't end the parent.
         body_start = start_idx + 1
-        if idx + 1 < len(label_positions):
-            body_end = label_positions[idx + 1][0]
-        else:
-            body_end = len(lines)
+        body_end = len(lines)
+        for future_idx in range(idx + 1, len(label_positions)):
+            future_line_idx, _future_name, future_indent = label_positions[future_idx]
+            if future_indent <= label_indent:
+                body_end = future_line_idx
+                break
 
         # Analyze body
         body = LabelBody(name=name, file=rel_path, line=start_idx + 1)
