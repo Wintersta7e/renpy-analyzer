@@ -47,8 +47,9 @@ def check(project: ProjectModel) -> list[Finding]:
                     )
                 )
 
-    # Incomplete coverage (only when 2+ languages exist)
-    languages = sorted(by_language.keys())
+    # Incomplete coverage (only when 2+ real languages exist)
+    # Exclude "None" — Ren'Py's base language identifier
+    languages = sorted(lang for lang in by_language if lang != "None")
     if len(languages) >= 2:
         # Collect all string_ids per language
         ids_by_lang: dict[str, set[str]] = {}

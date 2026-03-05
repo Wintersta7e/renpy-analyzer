@@ -59,7 +59,7 @@ def test_call_to_missing_label(tmp_path):
 
 
 def test_call_to_label_with_conditional_return(tmp_path):
-    """Label has return in one branch — no finding (has_return=True)."""
+    """Label has return in one branch but ends with jump — MEDIUM finding."""
     model = _project(tmp_path, """\
         label start:
             call helper
@@ -72,7 +72,9 @@ def test_call_to_label_with_conditional_return(tmp_path):
             return
     """)
     findings = check(model)
-    assert len(findings) == 0
+    assert len(findings) == 1
+    assert findings[0].severity.name == "MEDIUM"
+    assert "may not return" in findings[0].title
 
 
 def test_call_to_label_with_only_pass(tmp_path):

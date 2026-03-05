@@ -21,7 +21,24 @@ def check(project: ProjectModel) -> list[Finding]:
             # Label not found — handled by labels check
             continue
 
-        if not body.has_return:
+        if body.has_return and body.ends_with_jump:
+            # Conditional return + unconditional jump — stack leak on non-return path
+            findings.append(
+                Finding(
+                    severity=Severity.MEDIUM,
+                    check_name="callreturn",
+                    title=f"Called label '{target}' may not return (conditional)",
+                    description=(
+                        f"'call {target}' at {call.file}:{call.line} targets a label "
+                        f"with a conditional 'return' but ends with 'jump'. On the "
+                        f"non-returning path, the call stack frame leaks."
+                    ),
+                    file=call.file,
+                    line=call.line,
+                    suggestion=f"Ensure all code paths in label '{target}' reach a 'return'.",
+                )
+            )
+        elif not body.has_return:
             if body.ends_with_jump:
                 # Label ends with jump — stack frame leaks
                 findings.append(

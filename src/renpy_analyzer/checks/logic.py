@@ -17,6 +17,9 @@ def check(project: ProjectModel) -> list[Finding]:
     for cond in project.conditions:
         expr = cond.expression
 
+        # Track which (var, bool_val) pairs are flagged as precedence bugs
+        precedence_pairs: set[tuple[str, str]] = set()
+
         for m in RE_PRECEDENCE_BUG.finditer(expr):
             left_var = m.group(1)
             operator = m.group(2)
@@ -33,6 +36,7 @@ def check(project: ProjectModel) -> list[Finding]:
             if re.search(r"\bnot\s+$", prefix):
                 continue
 
+            precedence_pairs.add((right_var, bool_val))
             findings.append(
                 Finding(
                     severity=Severity.CRITICAL,
@@ -56,7 +60,8 @@ def check(project: ProjectModel) -> list[Finding]:
         for m in RE_EXPLICIT_BOOL.finditer(expr):
             var_name = m.group(1)
             bool_val = m.group(2)
-            if RE_PRECEDENCE_BUG.search(expr):
+            # Only suppress if this specific pair was already flagged as precedence bug
+            if (var_name, bool_val) in precedence_pairs:
                 continue
             if var_name in ("True", "False", "None"):
                 continue
