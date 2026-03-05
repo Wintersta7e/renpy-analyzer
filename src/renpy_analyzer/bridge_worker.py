@@ -70,23 +70,35 @@ def get_version(renpy):
 
 
 def flatten_ast(node):
-    """Recursively collect all AST nodes from a tree.
+    """Iteratively collect all AST nodes from a tree via BFS.
 
-    Ren'Py's get_children() uses a visitor pattern: it calls f(child)
-    for each child node rather than returning a list.
+    Handles both API styles of get_children():
+    - Visitor pattern: get_children(callback) calls callback(child)
+    - List return: get_children() returns a list of children
     """
-    nodes = []
-
-    def _collect(n):
-        nodes.append(n)
-
-    get_children = getattr(node, "get_children", None)
-    if get_children is not None:
-        get_children(_collect)
-    else:
-        nodes.append(node)
-
-    return nodes
+    result = []
+    seen = set()
+    queue = [node]
+    while queue:
+        current = queue.pop(0)
+        node_id = id(current)
+        if node_id in seen:
+            continue
+        seen.add(node_id)
+        result.append(current)
+        get_children = getattr(current, "get_children", None)
+        if get_children is None:
+            continue
+        # Try no-arg call first (returns list), fall back to visitor pattern
+        try:
+            children = get_children()
+            if children:
+                queue.extend(children)
+        except TypeError:
+            collected = []
+            get_children(collected.append)
+            queue.extend(collected)
+    return result
 
 
 def extract_from_node(node, renpy):
