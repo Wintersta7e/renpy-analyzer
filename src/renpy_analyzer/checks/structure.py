@@ -42,8 +42,8 @@ def _check_reserved_filenames(project: ProjectModel, findings: list[Finding]) ->
     seen: set[str] = set()
     for filepath in project.files:
         filename = PurePosixPath(filepath).name
-        if filename.startswith("00") and filename not in seen:
-            seen.add(filename)
+        if filename.startswith("00") and filepath not in seen:
+            seen.add(filepath)
             findings.append(
                 Finding(
                     severity=Severity.MEDIUM,

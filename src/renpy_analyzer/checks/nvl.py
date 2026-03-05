@@ -6,7 +6,7 @@ import re
 
 from ..models import Finding, ProjectModel, Severity
 
-RE_NVL_CHARACTER = re.compile(r"""Character\([^)]*kind\s*=\s*nvl""")
+RE_NVL_CHARACTER = re.compile(r"""Character\([^)]*kind\s*=\s*nvl\b""")
 RE_NVL_CLEAR = re.compile(r"^\s+nvl\s+clear\b")
 RE_DIALOGUE = re.compile(r"^\s+(\w+)\s+\"")
 RE_NARRATOR = re.compile(r"^\s+\"")

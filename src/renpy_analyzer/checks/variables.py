@@ -294,7 +294,7 @@ def _check_config_runtime_mutation(project: ProjectModel, findings: list[Finding
 
 
 RE_UNPICKLABLE = re.compile(
-    r"^\s*(?:lambda\b|open\s*\(|(?:iter|generator|zip|map|filter|reversed)\s*\()"
+    r"^\s*(?:lambda\b|open\s*\(|(?:iter|zip|map|filter|reversed)\s*\()"
 )
 
 

@@ -70,8 +70,7 @@ def _validate_tags(text: str) -> list[str]:
                 errors.append(f"Closing tag '{{/{tag_name}}}' without opening")
             elif stack[-1] != tag_name:
                 errors.append(f"Mismatched nesting: expected '{{/{stack[-1]}}}', found '{{/{tag_name}}}'")
-                # Pop anyway to avoid cascading errors
-                stack.pop()
+                # Do NOT pop — the opening tag is still unclosed
             else:
                 stack.pop()
         else:
