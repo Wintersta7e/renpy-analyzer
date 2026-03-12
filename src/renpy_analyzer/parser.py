@@ -63,8 +63,9 @@ RE_NARRATOR = re.compile(r'^(\s+)"((?:[^"\\]|\\.)*)"')
 RE_NARRATOR_FALLBACK = re.compile(r'^(\s+)"')
 RE_CONDITION = re.compile(r"^\s+(?:if|elif)\s+(.+?)\s*:")
 RE_PYTHON_CALL = re.compile(r"^\s*\$\s*\w+\.\w+\s*\(")
-RE_INIT_BLOCK = re.compile(r"^init\s+(?:(-?\d+)\s+)?python(?:\s+early)?\s*:")
+RE_INIT_BLOCK = re.compile(r"^init\s+(?:(-?\d+)\s+)?python(?:\s+(?:early|hide|in\s+\w+))?\s*:")
 RE_INIT_LABEL = re.compile(r"^init(?:\s+-?\d+)?\s*:")
+RE_PYTHON_BLOCK = re.compile(r"^(\s*)python(?:\s+(?:early|hide|in\s+\w+))?\s*:")
 
 RENPY_KEYWORDS = frozenset(
     {
@@ -167,6 +168,10 @@ def parse_file(filepath: str) -> dict:
     in_init: bool = False
     init_indent: int = -1
 
+    # Python block tracking — skip dialogue inside python blocks
+    in_python: bool = False
+    python_indent: int = -1
+
     # Screen context tracking — skip variables/dialogue inside screen blocks
     in_screen: bool = False
     screen_indent: int = -1
@@ -185,6 +190,11 @@ def parse_file(filepath: str) -> dict:
             in_init = False
             init_indent = -1
 
+        # --- Python block tracking ---
+        if in_python and indent <= python_indent:
+            in_python = False
+            python_indent = -1
+
         # --- Screen context tracking ---
         if in_screen and indent <= screen_indent:
             in_screen = False
@@ -195,11 +205,20 @@ def parse_file(filepath: str) -> dict:
             if m:
                 in_init = True
                 init_indent = 0
+                in_python = True
+                python_indent = 0
             else:
                 m = RE_INIT_LABEL.match(line)
                 if m:
                     in_init = True
                     init_indent = 0
+
+        # Standalone python: blocks (inside labels, etc.)
+        if not in_python:
+            m = RE_PYTHON_BLOCK.match(line)
+            if m:
+                in_python = True
+                python_indent = indent
 
         # --- Menu state tracking ---
         # Close any menus whose indent level has been exceeded
@@ -558,8 +577,8 @@ def parse_file(filepath: str) -> dict:
             )
             continue
 
-        # --- Dialogue (skip inside screens — bare strings are display text) ---
-        if in_screen:
+        # --- Dialogue (skip inside screens and python blocks) ---
+        if in_screen or in_python:
             continue
 
         m = RE_DIALOGUE.match(line)
