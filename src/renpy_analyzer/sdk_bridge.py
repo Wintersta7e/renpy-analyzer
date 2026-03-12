@@ -232,6 +232,7 @@ def convert_file_result(data: dict, filepath: str) -> dict:
                 line=d["line"],
                 kind=d.get("kind", "assign"),
                 value=d.get("value"),
+                in_init=d.get("in_init", False),
             )
             for d in data.get("variables", [])
         ]

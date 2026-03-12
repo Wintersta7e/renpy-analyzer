@@ -75,17 +75,25 @@ def flatten_ast(node):
     Handles both API styles of get_children():
     - Visitor pattern: get_children(callback) calls callback(child)
     - List return: get_children() returns a list of children
+
+    Returns a list of (node, in_init) tuples, where in_init is True
+    when the node is inside an Init block.
     """
     result = []
     seen = set()
-    queue = [node]
+    # Queue entries: (node, in_init_context)
+    queue = [(node, False)]
     while queue:
-        current = queue.pop(0)
+        current, in_init = queue.pop(0)
         node_id = id(current)
         if node_id in seen:
             continue
         seen.add(node_id)
-        result.append(current)
+        cls_name = type(current).__name__
+        # Init nodes and Define/Default are always init-time
+        if cls_name == "Init" or cls_name in ("Define", "Default"):
+            in_init = True
+        result.append((current, in_init))
         get_children = getattr(current, "get_children", None)
         if get_children is None:
             continue
@@ -93,15 +101,17 @@ def flatten_ast(node):
         try:
             children = get_children()
             if children:
-                queue.extend(children)
+                for child in children:
+                    queue.append((child, in_init))
         except TypeError:
             collected = []
             get_children(collected.append)
-            queue.extend(collected)
+            for child in collected:
+                queue.append((child, in_init))
     return result
 
 
-def extract_from_node(node, renpy):
+def extract_from_node(node, renpy, in_init=False):
     """Extract data from a single AST node into categorized lists.
 
     Returns a dict with keys matching our protocol:
@@ -200,7 +210,7 @@ def extract_from_node(node, renpy):
             else:
                 full_name = varname
 
-            result["variables"].append({"name": full_name, "line": line, "kind": kind, "value": source})
+            result["variables"].append({"name": full_name, "line": line, "kind": kind, "value": source, "in_init": in_init})
 
             # Check if it's a Character definition
             char_match = RE_CHARACTER.search(source)
@@ -226,6 +236,7 @@ def extract_from_node(node, renpy):
                             "line": line,
                             "kind": "augment",
                             "value": aug_m.group(3).strip(),
+                            "in_init": in_init,
                         }
                     )
                 else:
@@ -237,6 +248,7 @@ def extract_from_node(node, renpy):
                                 "line": line,
                                 "kind": "assign",
                                 "value": m.group(2).strip(),
+                                "in_init": in_init,
                             }
                         )
 
@@ -364,6 +376,33 @@ def merge_results(target, source):
             target[key].extend(source[key])
 
 
+def _drain_parse_errors(renpy):
+    """Drain and return the module-level parse_errors list.
+
+    renpy.parser.parse() accumulates errors in a global list.  If this
+    list is not cleared between files, a single bad file causes every
+    subsequent parse() call to return None.  This function uses the
+    SDK's get_parse_errors() (which resets the list) or falls back to
+    manual clearing for older SDKs.
+    """
+    errors = []
+    get_fn = getattr(renpy.parser, "get_parse_errors", None)
+    if get_fn:
+        errors = get_fn() or []
+        # Defensive: ensure the underlying list is empty even if get_fn()
+        # returned errors without clearing them internally.
+        err_list = getattr(renpy.parser, "parse_errors", None)
+        if err_list:
+            del err_list[:]
+    else:
+        # Older SDKs: clear manually
+        err_list = getattr(renpy.parser, "parse_errors", None)
+        if err_list:
+            errors = list(err_list)
+            del err_list[:]
+    return errors
+
+
 def parse_file_with_sdk(renpy, filepath, game_dir):
     """Parse a single .rpy file using the SDK parser."""
     try:
@@ -375,10 +414,19 @@ def parse_file_with_sdk(renpy, filepath, game_dir):
     try:
         ast_nodes = renpy.parser.parse(filepath, filedata)
     except Exception as exc:
+        # Drain parse_errors to avoid poisoning subsequent files.
+        _drain_parse_errors(renpy)
         return None, str(exc)
 
+    # Always drain the module-level parse_errors list after each parse()
+    # call.  parse_errors is a global that accumulates across calls — if
+    # it is not cleared, a single file's error causes every subsequent
+    # file to return None.
+    file_errors = _drain_parse_errors(renpy)
+
     if ast_nodes is None:
-        return None, "Parser returned None"
+        error_msg = "; ".join(file_errors) if file_errors else "Parser returned None"
+        return None, error_msg
 
     file_result = {
         "labels": [],
@@ -402,8 +450,8 @@ def parse_file_with_sdk(renpy, filepath, game_dir):
     }
 
     for top_node in ast_nodes:
-        for node in flatten_ast(top_node):
-            node_data = extract_from_node(node, renpy)
+        for node, node_in_init in flatten_ast(top_node):
+            node_data = extract_from_node(node, renpy, in_init=node_in_init)
             merge_results(file_result, node_data)
 
     return file_result, None
