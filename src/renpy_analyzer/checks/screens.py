@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+import re
+
 from ..models import Finding, ProjectModel, Severity
+
+# Patterns for Python-side screen references (actions, renpy API calls).
+# NOTE: bare ``Show()`` is NOT included — it shows a displayable/image, not a
+# screen.  ``ShowMenu``, ``ShowTransient``, ``ToggleScreen``, and ``Hide`` are
+# the screen-related actions.
+RE_SCREEN_ACTION = re.compile(r"""\b(?:ShowMenu|ShowTransient|ToggleScreen|Hide)\s*\(\s*["'](\w+)["']""")
+RE_RENPY_SCREEN = re.compile(r"""\brenpy\.(?:show_screen|call_screen|hide_screen|toggle_screen)\s*\(\s*["'](\w+)["']""")
 
 BUILTIN_SCREENS = frozenset(
     {
@@ -84,6 +93,14 @@ def check(project: ProjectModel) -> list[Finding]:
                     suggestion=f"Define 'screen {name}:' or check for typos.",
                 )
             )
+
+    # Scan raw lines for Python-side screen references (ShowMenu, Show, etc.)
+    for lines in project.raw_lines.values():
+        for raw_line in lines:
+            for m in RE_SCREEN_ACTION.finditer(raw_line):
+                ref_names.add(m.group(1))
+            for m in RE_RENPY_SCREEN.finditer(raw_line):
+                ref_names.add(m.group(1))
 
     # Unused screen definitions
     for name, defs in defined.items():
