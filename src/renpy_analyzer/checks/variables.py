@@ -51,6 +51,11 @@ PYTHON_BUILTINS = frozenset(
 )
 
 
+# Matches [varname] but not [[escaped]].  The negative lookbehind
+# rejects the second bracket of ``[[``.
+RE_INTERPOLATION = re.compile(r"(?<!\[)\[(\w+)(?:[!:.][^\]]+)?\]")
+
+
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -70,6 +75,13 @@ def check(project: ProjectModel) -> list[Finding]:
 
     for dl in project.dialogue:
         all_refs.add(dl.speaker)
+
+    # Track Ren'Py text interpolation [varname] in raw lines.
+    # Screens, dialogue, and other text can reference variables via [var].
+    for lines in project.raw_lines.values():
+        for raw_line in lines:
+            for m in RE_INTERPOLATION.finditer(raw_line):
+                all_refs.add(m.group(1))
 
     declared_names = set(defaults.keys())
     for var in project.variables:
@@ -182,19 +194,26 @@ def _check_case_mismatches(defaults: dict[str, list], findings: list[Finding]) -
 
 
 def _check_undeclared(project: ProjectModel, declared_names: set[str], findings: list[Finding]) -> None:
+    # Deduplicate: report only the first assignment site per variable name.
+    seen: set[str] = set()
     for var in project.variables:
         if var.kind == "assign" and var.name not in declared_names:
-            if "." in var.name:
+            if "." in var.name or var.name in seen:
                 continue
+            seen.add(var.name)
+            # $ assignments within labels are a normal Ren'Py pattern for
+            # local-scope variables.  Downgrade to STYLE since the variable
+            # is being explicitly assigned (not used before definition).
             findings.append(
                 Finding(
-                    severity=Severity.MEDIUM,
+                    severity=Severity.STYLE,
                     check_name="variables",
                     title=f"Undeclared variable '{var.name}'",
                     description=(
-                        f"Variable '{var.name}' is assigned at {var.file}:{var.line} "
-                        f"but was never declared with 'default'. This can cause issues "
-                        f"with save/load and Ren'Py's rollback system."
+                        f"Variable '{var.name}' is assigned with '$' at "
+                        f"{var.file}:{var.line} but has no 'default' declaration. "
+                        f"While this works, it can cause issues with save/load "
+                        f"and Ren'Py's rollback system."
                     ),
                     file=var.file,
                     line=var.line,
