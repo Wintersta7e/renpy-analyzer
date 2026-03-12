@@ -149,4 +149,4 @@ def _merge_result(model: ProjectModel, result: dict, rpy_file: Path, scan_dir: P
                 item.file = rel_path
 
     for key in _MODEL_KEYS:
-        getattr(model, key).extend(result[key])
+        getattr(model, key).extend(result.get(key, []))
