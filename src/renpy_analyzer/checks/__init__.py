@@ -16,6 +16,7 @@ from . import (
     nvl,
     persistent,
     replay,
+    screen_syntax,
     screens,
     structure,
     texttags,
@@ -43,4 +44,5 @@ ALL_CHECKS = {
     "Project Structure": structure.check,
     "Replay": replay.check,
     "NVL": nvl.check,
+    "Screen Syntax": screen_syntax.check,
 }
