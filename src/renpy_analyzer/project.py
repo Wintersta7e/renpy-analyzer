@@ -44,7 +44,12 @@ def detect_sub_games(path: str) -> list[str]:
     if (root / "game").is_dir():
         return []  # Single game — no sub-games
     sub_games = []
-    for child in sorted(root.iterdir()):
+    try:
+        children = sorted(root.iterdir())
+    except OSError:
+        logger.warning("Could not list directory: %s", root)
+        return []
+    for child in children:
         if child.is_dir() and (child / "game").is_dir():
             sub_games.append(child.name)
     return sub_games if len(sub_games) > 1 else []
@@ -100,8 +105,9 @@ def _load_with_regex(model: ProjectModel, rpy_files: list[Path], scan_dir: Path)
     """Parse files using the built-in regex parser."""
     for rpy_file in rpy_files:
         try:
-            lines = rpy_file.read_text(encoding="utf-8", errors="replace").splitlines()
-            result = parse_file(str(rpy_file))
+            content = rpy_file.read_text(encoding="utf-8", errors="replace")
+            lines = content.splitlines()
+            result = parse_file(str(rpy_file), content=content)
         except Exception:
             logger.warning("Skipping %s: failed to parse", rpy_file, exc_info=True)
             continue
@@ -129,8 +135,8 @@ def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, s
             lines = rpy_file.read_text(encoding="utf-8", errors="replace").splitlines()
             rel_path = str(rpy_file.relative_to(scan_dir))
             model.raw_lines[rel_path] = lines
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.warning("Could not read raw lines for %s: %s", rpy_file, exc)
         _merge_result(model, result, rpy_file, scan_dir)
 
     if sdk_skipped:

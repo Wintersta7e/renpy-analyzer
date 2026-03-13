@@ -11,6 +11,7 @@ It must work with Python 2.7+ (SDK 7.x) and Python 3.9+ (SDK 8.x).
 
 from __future__ import print_function
 
+import collections
 import io
 import json
 import os
@@ -82,9 +83,9 @@ def flatten_ast(node):
     result = []
     seen = set()
     # Queue entries: (node, in_init_context)
-    queue = [(node, False)]
+    queue = collections.deque([(node, False)])
     while queue:
-        current, in_init = queue.pop(0)
+        current, in_init = queue.popleft()
         node_id = id(current)
         if node_id in seen:
             continue
@@ -118,26 +119,9 @@ def extract_from_node(node, renpy, in_init=False):
     labels, jumps, calls, dynamic_jumps, variables, menus, scenes,
     shows, images, music, characters, dialogue, conditions.
     """
-    result = {
-        "labels": [],
-        "jumps": [],
-        "calls": [],
-        "dynamic_jumps": [],
-        "variables": [],
-        "menus": [],
-        "scenes": [],
-        "shows": [],
-        "images": [],
-        "music": [],
-        "characters": [],
-        "dialogue": [],
-        "conditions": [],
-        "screen_defs": [],
-        "screen_refs": [],
-        "transform_defs": [],
-        "transform_refs": [],
-        "translations": [],
-    }
+    # Only populate keys that actually have data to avoid allocating
+    # 18 empty lists per node (most nodes produce 1-2 entries).
+    result = {}
 
     line = getattr(node, "linenumber", 0)
     cls_name = type(node).__name__
@@ -145,23 +129,23 @@ def extract_from_node(node, renpy, in_init=False):
     if cls_name == "Label":
         name = getattr(node, "name", None)
         if name:
-            result["labels"].append({"name": name, "line": line})
+            result.setdefault("labels", []).append({"name": name, "line": line})
 
     elif cls_name == "Jump":
         target = getattr(node, "target", None)
         is_expr = getattr(node, "expression", False)
         if is_expr:
-            result["dynamic_jumps"].append({"expression": str(target or ""), "line": line})
+            result.setdefault("dynamic_jumps", []).append({"expression": str(target or ""), "line": line})
         elif target:
-            result["jumps"].append({"target": target, "line": line})
+            result.setdefault("jumps", []).append({"target": target, "line": line})
 
     elif cls_name == "Call":
         target = getattr(node, "label", None)
         is_expr = getattr(node, "expression", False)
         if is_expr:
-            result["dynamic_jumps"].append({"expression": str(target or ""), "line": line})
+            result.setdefault("dynamic_jumps", []).append({"expression": str(target or ""), "line": line})
         elif target:
-            result["calls"].append({"target": target, "line": line})
+            result.setdefault("calls", []).append({"target": target, "line": line})
 
     elif cls_name == "Return":
         pass  # Used in menu analysis only
@@ -170,7 +154,7 @@ def extract_from_node(node, renpy, in_init=False):
         who = getattr(node, "who", None)
         if who:
             what = getattr(node, "what", "") or ""
-            result["dialogue"].append({"speaker": who, "line": line, "text": what})
+            result.setdefault("dialogue", []).append({"speaker": who, "line": line, "text": what})
 
     elif cls_name == "Scene":
         imspec = getattr(node, "imspec", None)
@@ -180,13 +164,13 @@ def extract_from_node(node, renpy, in_init=False):
             # imspec format varies; transition info may be at index 3
             if len(imspec) > 3 and imspec[3]:
                 transition = str(imspec[3])
-            result["scenes"].append({"image_name": image_name, "line": line, "transition": transition})
+            result.setdefault("scenes", []).append({"image_name": image_name, "line": line, "transition": transition})
 
     elif cls_name == "Show":
         imspec = getattr(node, "imspec", None)
         if imspec and imspec[0]:
             image_name = " ".join(imspec[0])
-            result["shows"].append({"image_name": image_name, "line": line})
+            result.setdefault("shows", []).append({"image_name": image_name, "line": line})
 
     elif cls_name == "Image":
         imgname = getattr(node, "imgname", None)
@@ -194,7 +178,7 @@ def extract_from_node(node, renpy, in_init=False):
         if imgname:
             name = " ".join(imgname) if isinstance(imgname, (list, tuple)) else str(imgname)
             value = getattr(code, "source", None) if code else None
-            result["images"].append({"name": name, "line": line, "value": value})
+            result.setdefault("images", []).append({"name": name, "line": line, "value": value})
 
     elif cls_name in ("Define", "Default"):
         varname = getattr(node, "varname", None)
@@ -210,12 +194,12 @@ def extract_from_node(node, renpy, in_init=False):
             else:
                 full_name = varname
 
-            result["variables"].append({"name": full_name, "line": line, "kind": kind, "value": source, "in_init": in_init})
+            result.setdefault("variables", []).append({"name": full_name, "line": line, "kind": kind, "value": source, "in_init": in_init})
 
             # Check if it's a Character definition
             char_match = RE_CHARACTER.search(source)
             if char_match:
-                result["characters"].append(
+                result.setdefault("characters", []).append(
                     {
                         "shorthand": varname,
                         "display_name": char_match.group(1),
@@ -230,7 +214,7 @@ def extract_from_node(node, renpy, in_init=False):
             for src_line in source.splitlines():
                 aug_m = RE_AUGMENTED.match(src_line)
                 if aug_m:
-                    result["variables"].append(
+                    result.setdefault("variables", []).append(
                         {
                             "name": aug_m.group(1),
                             "line": line,
@@ -242,7 +226,7 @@ def extract_from_node(node, renpy, in_init=False):
                 else:
                     m = RE_ASSIGN.match(src_line)
                     if m:
-                        result["variables"].append(
+                        result.setdefault("variables", []).append(
                             {
                                 "name": m.group(1),
                                 "line": line,
@@ -286,7 +270,7 @@ def extract_from_node(node, renpy, in_init=False):
                     }
                 )
         if choices:
-            result["menus"].append({"line": line, "choices": choices})
+            result.setdefault("menus", []).append({"line": line, "choices": choices})
 
     elif cls_name == "If":
         entries = getattr(node, "entries", [])
@@ -294,44 +278,44 @@ def extract_from_node(node, renpy, in_init=False):
             # entry = (condition_expr, block)
             if len(entry) >= 1 and entry[0]:
                 cond = str(entry[0])
-                result["conditions"].append({"expression": cond, "line": line})
+                result.setdefault("conditions", []).append({"expression": cond, "line": line})
 
     elif cls_name == "Screen":
         name = getattr(node, "name", None)
         if name:
-            result["screen_defs"].append({"name": name, "line": line})
+            result.setdefault("screen_defs", []).append({"name": name, "line": line})
 
     elif cls_name == "ShowScreen":
         name = getattr(node, "screen_name", None) or getattr(node, "name", None)
         if isinstance(name, (list, tuple)):
             name = name[0] if name else None
         if name:
-            result["screen_refs"].append({"name": str(name), "line": line, "action": "show"})
+            result.setdefault("screen_refs", []).append({"name": str(name), "line": line, "action": "show"})
 
     elif cls_name == "CallScreen":
         name = getattr(node, "screen_name", None) or getattr(node, "name", None)
         if isinstance(name, (list, tuple)):
             name = name[0] if name else None
         if name:
-            result["screen_refs"].append({"name": str(name), "line": line, "action": "call"})
+            result.setdefault("screen_refs", []).append({"name": str(name), "line": line, "action": "call"})
 
     elif cls_name == "HideScreen":
         name = getattr(node, "screen_name", None) or getattr(node, "name", None)
         if isinstance(name, (list, tuple)):
             name = name[0] if name else None
         if name:
-            result["screen_refs"].append({"name": str(name), "line": line, "action": "hide"})
+            result.setdefault("screen_refs", []).append({"name": str(name), "line": line, "action": "hide"})
 
     elif cls_name == "Transform":
         name = getattr(node, "varname", None)
         if name:
-            result["transform_defs"].append({"name": name, "line": line})
+            result.setdefault("transform_defs", []).append({"name": name, "line": line})
 
     elif cls_name == "Translate":
         language = getattr(node, "language", None)
         identifier = getattr(node, "identifier", None)
         if language and identifier:
-            result["translations"].append({"language": language, "string_id": identifier, "line": line})
+            result.setdefault("translations", []).append({"language": language, "string_id": identifier, "line": line})
 
     # Extract transform refs from Show/Scene 'at' clauses
     if cls_name in ("Show", "Scene"):
@@ -340,7 +324,7 @@ def extract_from_node(node, renpy, in_init=False):
             # imspec[2] is the at_list (list of transform names)
             for t in imspec[2]:
                 if isinstance(t, str):
-                    result["transform_refs"].append({"name": t, "line": line})
+                    result.setdefault("transform_refs", []).append({"name": t, "line": line})
 
     return result
 
@@ -351,22 +335,22 @@ def _extract_music(stmt_line, line_num, result):
     if m:
         kind = m.group(1).lower()
         action = kind if kind != "music" else "play"
-        result["music"].append({"path": m.group(2), "line": line_num, "action": action})
+        result.setdefault("music", []).append({"path": m.group(2), "line": line_num, "action": action})
         return
 
     m = RE_QUEUE.match(stmt_line)
     if m:
-        result["music"].append({"path": m.group(2), "line": line_num, "action": "queue"})
+        result.setdefault("music", []).append({"path": m.group(2), "line": line_num, "action": "queue"})
         return
 
     m = RE_VOICE.match(stmt_line)
     if m:
-        result["music"].append({"path": m.group(1), "line": line_num, "action": "voice"})
+        result.setdefault("music", []).append({"path": m.group(1), "line": line_num, "action": "voice"})
         return
 
     m = RE_STOP.match(stmt_line)
     if m:
-        result["music"].append({"path": "", "line": line_num, "action": "stop"})
+        result.setdefault("music", []).append({"path": "", "line": line_num, "action": "stop"})
 
 
 def merge_results(target, source):

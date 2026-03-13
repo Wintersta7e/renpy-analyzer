@@ -12,6 +12,7 @@ logger = logging.getLogger("renpy_analyzer.checks.assets")
 
 
 def check(project: ProjectModel) -> list[Finding]:
+    _dir_listing_cache.clear()
     findings: list[Finding] = []
 
     defined_images: set[str] = set()
@@ -116,6 +117,24 @@ def _check_mp3_music(project: ProjectModel, findings: list[Finding]) -> None:
             )
 
 
+# Cache for directory listings, populated per check() call.
+_dir_listing_cache: dict[Path, dict[str, str]] = {}
+
+
+def _list_dir_cached(directory: Path) -> dict[str, str] | None:
+    """Return {lowercase_name: actual_name} for entries in directory, cached."""
+    if directory in _dir_listing_cache:
+        return _dir_listing_cache[directory]
+    try:
+        entries = {e.name.lower(): e.name for e in directory.iterdir()}
+    except OSError:
+        logger.warning("Cannot list directory %s", directory, exc_info=True)
+        _dir_listing_cache[directory] = {}
+        return None
+    _dir_listing_cache[directory] = entries
+    return entries
+
+
 def _check_file_reference(
     root: Path, rel_path: str, file_desc: str, ref_file: str, ref_line: int, findings: list[Finding]
 ) -> None:
@@ -124,10 +143,8 @@ def _check_file_reference(
     if not full_path.exists():
         parent = full_path.parent
         if parent.exists():
-            try:
-                actual_files = {f.name.lower(): f.name for f in parent.iterdir()}
-            except OSError:
-                logger.warning("Cannot list directory %s", parent, exc_info=True)
+            actual_files = _list_dir_cached(parent)
+            if actual_files is None:
                 return
             expected_name = full_path.name.lower()
             if expected_name in actual_files:
@@ -186,11 +203,11 @@ def _check_directory_casing(root: Path, rel_path: str, ref_file: str, ref_line: 
     for part in parts[:-1]:
         if not current.exists():
             break
-        try:
-            entries = {e.name.lower(): e.name for e in current.iterdir() if e.is_dir()}
-        except OSError:
-            logger.warning("Cannot list directory %s", current, exc_info=True)
+        all_entries = _list_dir_cached(current)
+        if all_entries is None:
             break
+        # Filter to directories only (cache stores all entries)
+        entries = {k: v for k, v in all_entries.items() if (current / v).is_dir()}
         if part.lower() in entries and entries[part.lower()] != part:
             actual = entries[part.lower()]
             findings.append(

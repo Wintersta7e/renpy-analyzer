@@ -54,6 +54,7 @@ PYTHON_BUILTINS = frozenset(
 # Matches [varname] but not [[escaped]].  The negative lookbehind
 # rejects the second bracket of ``[[``.
 RE_INTERPOLATION = re.compile(r"(?<!\[)\[(\w+)(?:[!:.][^\]]+)?\]")
+RE_IDENTIFIER = re.compile(r"\b([A-Za-z_]\w*)\b")
 
 
 def check(project: ProjectModel) -> list[Finding]:
@@ -69,19 +70,21 @@ def check(project: ProjectModel) -> list[Finding]:
             all_refs.add(var.name)
 
     for cond in project.conditions:
-        for name in re.findall(r"\b([A-Za-z_]\w*)\b", cond.expression):
+        for name in RE_IDENTIFIER.findall(cond.expression):
             if name not in ("True", "False", "None", "and", "or", "not", "if", "elif", "else", "in", "is"):
                 all_refs.add(name)
 
     for dl in project.dialogue:
-        all_refs.add(dl.speaker)
+        if dl.speaker:
+            all_refs.add(dl.speaker)
 
     # Track Ren'Py text interpolation [varname] in raw lines.
     # Screens, dialogue, and other text can reference variables via [var].
     for lines in project.raw_lines.values():
         for raw_line in lines:
-            for m in RE_INTERPOLATION.finditer(raw_line):
-                all_refs.add(m.group(1))
+            if "[" in raw_line:
+                for m in RE_INTERPOLATION.finditer(raw_line):
+                    all_refs.add(m.group(1))
 
     declared_names = set(defaults.keys())
     for var in project.variables:
