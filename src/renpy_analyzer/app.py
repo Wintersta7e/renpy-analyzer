@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 import threading
@@ -100,6 +99,7 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._filtered_findings: list[Finding] = []
         self._project_path: str = ""
         self._analysis_thread: threading.Thread | None = None
+        self._export_thread: threading.Thread | None = None
         self._cancel_event = threading.Event()
         self._severity_counts: dict[Severity, int] = {}
         self._severity_active: dict[Severity, bool] = {}
@@ -643,7 +643,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._browse_game_btn.configure(state="disabled")
         self._add_sdk_btn.configure(state="disabled")
         self._remove_sdk_btn.configure(state="disabled")
-        self._tree.delete(*self._tree.get_children())
+        for iid in self._tree.get_children():
+            self._tree.delete(iid)
 
         self._cancel_event.clear()
         self._cancel_btn.configure(state="normal")
@@ -677,9 +678,11 @@ class RenpyAnalyzerApp(ctk.CTk):
             self.after(100, self._analysis_complete, findings, project_path)
         except Exception as exc:
             logger.exception("Analysis failed")
-            error_msg = str(exc) or f"{type(exc).__name__}: (no details available)"
-            with contextlib.suppress(Exception):
+            error_msg = f"{type(exc).__name__}: {exc}" if str(exc) else f"{type(exc).__name__}: (no details available)"
+            try:
                 self.after(0, self._analysis_failed, error_msg)
+            except Exception:
+                logger.error("Could not deliver error to GUI: %s", error_msg)
 
     # -----------------------------------------------------------------------
     # GUI callbacks
@@ -773,7 +776,8 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Hide tree during rebuild to prevent flicker with large datasets
         self._tree.grid_remove()
-        self._tree.delete(*self._tree.get_children())
+        for iid in self._tree.get_children():
+            self._tree.delete(iid)
         for idx, f in enumerate(self._filtered_findings):
             parity = "even" if idx % 2 == 0 else "odd"
             tag = f"{f.severity.name}_{parity}"
@@ -919,11 +923,12 @@ class RenpyAnalyzerApp(ctk.CTk):
         findings_snapshot = list(self._findings)
         project_path = self._project_path
 
-        threading.Thread(
+        self._export_thread = threading.Thread(
             target=self._run_pdf_export,
             args=(output_path, findings_snapshot, project_path),
             daemon=True,
-        ).start()
+        )
+        self._export_thread.start()
 
     def _run_pdf_export(self, output_path: str, findings: list[Finding], project_path: str) -> None:
         try:
@@ -935,13 +940,17 @@ class RenpyAnalyzerApp(ctk.CTk):
                 game_path=project_path,
             )
             logger.info("PDF exported to %s", output_path)
-            with contextlib.suppress(Exception):
+            try:
                 self.after(0, self._pdf_export_done, output_path, None)
+            except Exception:
+                logger.error("Could not deliver PDF success to GUI")
         except Exception as exc:
             logger.exception("PDF export failed")
-            error_msg = str(exc) or f"{type(exc).__name__}: (no details available)"
-            with contextlib.suppress(Exception):
+            error_msg = f"{type(exc).__name__}: {exc}" if str(exc) else f"{type(exc).__name__}: (no details available)"
+            try:
                 self.after(0, self._pdf_export_done, output_path, error_msg)
+            except Exception:
+                logger.error("Could not deliver PDF error to GUI: %s", error_msg)
 
     def _pdf_export_done(self, output_path: str, error: str | None) -> None:
         self._export_btn.configure(state="normal")
@@ -988,6 +997,13 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._save_settings()
         except Exception:
             logger.debug("Settings save failed on exit", exc_info=True)
+
+        # Wait briefly for any in-progress PDF export to finish so we don't
+        # corrupt the output file.
+        for t in (self._export_thread, self._analysis_thread):
+            if t is not None and t.is_alive():
+                t.join(timeout=3.0)
+
         os._exit(0)
 
 
