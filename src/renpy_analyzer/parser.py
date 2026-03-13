@@ -29,7 +29,7 @@ from .models import (
 
 # --- Regex patterns ---
 
-RE_LABEL = re.compile(r"^(\s*)label\s+(\.?\w+)\s*(?:\(.*\))?\s*:")
+RE_LABEL = re.compile(r"^(\s*)label\s+(\.?[\w.]+)\s*(?:\(.*\))?\s*:")
 RE_JUMP_EXPR = re.compile(r"^\s+jump\s+expression\s+(.+)")
 RE_CALL_EXPR = re.compile(r"^\s+call\s+expression\s+(.+)")
 RE_JUMP = re.compile(r"^\s+jump\s+([\w.]+)")
@@ -45,12 +45,12 @@ RE_SCENE = re.compile(
 RE_SHOW = re.compile(r"^\s+show\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
-RE_MUSIC_PLAY = re.compile(r'^\s+play\s+music\s+"([^"]+)"')
+RE_MUSIC_PLAY = re.compile(r"""^\s+play\s+music\s+["']([^"']+)["']""")
 RE_MUSIC_STOP = re.compile(r"^\s+stop\s+(music|sound|voice|audio|movie)\b")
-RE_SOUND_PLAY = re.compile(r'^\s+play\s+(sound|voice|audio)\s+"([^"]+)"')
-RE_MUSIC_QUEUE = re.compile(r'^\s+queue\s+(music|sound|voice|audio)\s+"([^"]+)"')
-RE_VOICE_STMT = re.compile(r'^\s+voice\s+"([^"]+)"')
-RE_MENU = re.compile(r"^(\s+)menu\s*:")
+RE_SOUND_PLAY = re.compile(r"""^\s+play\s+(sound|voice|audio)\s+["']([^"']+)["']""")
+RE_MUSIC_QUEUE = re.compile(r"""^\s+queue\s+(music|sound|voice|audio)\s+["']([^"']+)["']""")
+RE_VOICE_STMT = re.compile(r"""^\s+voice\s+["']([^"']+)["']""")
+RE_MENU = re.compile(r"^(\s*)menu\s*:")
 RE_MENU_CHOICE = re.compile(r'^(\s+)"([^"]+)"(?:\s+if\s+(.+?))?\s*:')
 RE_SCREEN_DEF = re.compile(r"^screen\s+(\w+)")
 RE_SCREEN_REF = re.compile(r"^\s+(show|call|hide)\s+screen\s+(\w+)")
@@ -131,12 +131,24 @@ def _get_indent(line: str) -> int:
     return len(line) - len(line.lstrip())
 
 
-def parse_file(filepath: str) -> dict:
-    """Parse a single .rpy file and return dict of extracted element lists."""
+def parse_file(filepath: str, content: str | None = None) -> dict:
+    """Parse a single .rpy file and return dict of extracted element lists.
+
+    Parameters
+    ----------
+    filepath:
+        Path to the .rpy file (used for display_path metadata).
+    content:
+        Optional pre-read file content. When provided, the file is NOT
+        read from disk, avoiding a redundant I/O operation.
+    """
     path = Path(filepath)
     display_path = path.name
 
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if content is not None:
+        lines = content.splitlines()
+    else:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
 
     labels: list[Label] = []
     jumps: list[Jump] = []
@@ -565,17 +577,18 @@ def parse_file(filepath: str) -> dict:
             )
             continue
 
-        # --- Condition ---
-        m = RE_CONDITION.match(line)
-        if m:
-            conditions.append(
-                Condition(
-                    expression=m.group(1),
-                    file=display_path,
-                    line=lineno,
+        # --- Condition (skip inside screens and python blocks) ---
+        if not in_screen and not in_python:
+            m = RE_CONDITION.match(line)
+            if m:
+                conditions.append(
+                    Condition(
+                        expression=m.group(1),
+                        file=display_path,
+                        line=lineno,
+                    )
                 )
-            )
-            continue
+                continue
 
         # --- Dialogue (skip inside screens and python blocks) ---
         if in_screen or in_python:
