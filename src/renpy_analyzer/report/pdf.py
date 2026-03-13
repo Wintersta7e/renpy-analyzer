@@ -15,16 +15,20 @@ Produces a professional A4 report with:
 from __future__ import annotations
 
 import io
+import logging
 import math
 import os
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import lru_cache
 
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 from ..models import Finding, Severity
+
+logger = logging.getLogger("renpy_analyzer.report.pdf")
 
 # ---------------------------------------------------------------------------
 # Hex helper
@@ -123,7 +127,11 @@ _FM = "Courier"
 
 
 def _safe(text: str) -> str:
-    """Sanitize text for base14 PDF fonts (Latin-1 range)."""
+    """Sanitize text for base14 PDF fonts (Latin-1 range).
+
+    Non-Latin-1 characters (CJK, Cyrillic, etc.) are replaced with '?'
+    since base14 fonts lack those glyphs.
+    """
     return text.encode("latin-1", errors="replace").decode("latin-1")
 
 
@@ -132,11 +140,16 @@ def _tw(text: str, font: str, size: float) -> float:
     return float(stringWidth(_safe(text), font, size))
 
 
-def _wrap(text: str, max_w: float, font: str, size: float) -> list[str]:
-    """Word-wrap *text* to fit within *max_w* points."""
+@lru_cache(maxsize=1024)
+def _wrap(text: str, max_w: float, font: str, size: float) -> tuple[str, ...]:
+    """Word-wrap *text* to fit within *max_w* points.
+
+    Returns a tuple (hashable for caching) — same inputs during measure
+    and draw phases get deduplicated automatically.
+    """
     words = text.split()
     if not words:
-        return [""]
+        return ("",)
     lines: list[str] = []
     cur = words[0]
     for w in words[1:]:
@@ -147,7 +160,7 @@ def _wrap(text: str, max_w: float, font: str, size: float) -> list[str]:
             lines.append(cur)
             cur = w
     lines.append(cur)
-    return lines
+    return tuple(lines)
 
 
 # Location layout
@@ -1108,11 +1121,23 @@ def generate_pdf(
     ]
 
     # --- Pass 2: real render with TOC on page 2 -----------------------------
-    builder = _PDFBuilder(output_path, game_name, game_path)
-    builder.draw_title_page(findings)
+    # Clear _wrap cache between reports to avoid unbounded growth.
+    _wrap.cache_clear()
 
-    if toc_data:
-        builder.draw_toc_page(toc_data)
+    try:
+        builder = _PDFBuilder(output_path, game_name, game_path)
+        builder.draw_title_page(findings)
 
-    _render_sections(builder, findings, grouped, active_categories)
-    builder.save()
+        if toc_data:
+            builder.draw_toc_page(toc_data)
+
+        _render_sections(builder, findings, grouped, active_categories)
+        builder.save()
+    except Exception:
+        # Remove partial/corrupt PDF so the user doesn't open a broken file.
+        try:
+            if isinstance(output_path, str) and os.path.exists(output_path):
+                os.unlink(output_path)
+        except OSError:
+            pass
+        raise

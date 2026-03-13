@@ -57,7 +57,8 @@ def _parse_vc_version(filepath: Path) -> tuple[int, ...] | None:
     """Parse version from vc_version.py (8.x+ format)."""
     try:
         text = filepath.read_text(encoding="utf-8", errors="replace")
-    except OSError:
+    except OSError as exc:
+        logger.debug("Could not read %s: %s", filepath, exc)
         return None
 
     m = _RE_VC_VERSION_STR.search(text)
@@ -72,7 +73,8 @@ def _parse_init_version(filepath: Path) -> tuple[int, ...] | None:
     """Parse version_tuple from __init__.py (7.x format)."""
     try:
         text = filepath.read_text(encoding="utf-8", errors="replace")
-    except OSError:
+    except OSError as exc:
+        logger.debug("Could not read %s: %s", filepath, exc)
         return None
 
     m = _RE_VERSION_TUPLE.search(text)
