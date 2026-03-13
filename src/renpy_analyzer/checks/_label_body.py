@@ -42,7 +42,7 @@ def analyze_label_bodies(project: ProjectModel) -> dict[str, LabelBody]:
     # Return cached result if available.
     cache = getattr(project, "_label_bodies_cache", None)
     if cache is not None:
-        return cache  # type: ignore[return-value]
+        return cache  # type: ignore[no-any-return]
 
     result: dict[str, LabelBody] = {}
     root = Path(project.root_dir)
