@@ -71,6 +71,15 @@ def check(project: ProjectModel) -> list[Finding]:
         ref_names.add(sr.name)
         ref_locations.setdefault(sr.name, []).append(sr)
 
+    # Scan raw lines for Python-side screen references (ShowMenu, etc.)
+    # Must run BEFORE the undefined check so Python-only refs are included.
+    for lines in project.raw_lines.values():
+        for raw_line in lines:
+            for m in RE_SCREEN_ACTION.finditer(raw_line):
+                ref_names.add(m.group(1))
+            for m in RE_RENPY_SCREEN.finditer(raw_line):
+                ref_names.add(m.group(1))
+
     # Undefined screen references
     for name, refs in ref_locations.items():
         if name not in defined and name not in BUILTIN_SCREENS:
@@ -93,14 +102,6 @@ def check(project: ProjectModel) -> list[Finding]:
                     suggestion=f"Define 'screen {name}:' or check for typos.",
                 )
             )
-
-    # Scan raw lines for Python-side screen references (ShowMenu, Show, etc.)
-    for lines in project.raw_lines.values():
-        for raw_line in lines:
-            for m in RE_SCREEN_ACTION.finditer(raw_line):
-                ref_names.add(m.group(1))
-            for m in RE_RENPY_SCREEN.finditer(raw_line):
-                ref_names.add(m.group(1))
 
     # Unused screen definitions
     for name, defs in defined.items():

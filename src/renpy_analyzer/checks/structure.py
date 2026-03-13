@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from ..models import Finding, ProjectModel, Severity
 
@@ -39,22 +39,26 @@ def _check_missing_start(project: ProjectModel, findings: list[Finding]) -> None
 
 def _check_reserved_filenames(project: ProjectModel, findings: list[Finding]) -> None:
     """Ren'Py reserves filenames beginning with '00' for engine bootstrap files."""
+    root = Path(project.root_dir)
     seen: set[str] = set()
     for filepath in project.files:
         filename = PurePosixPath(filepath).name
         if filename.startswith("00") and filepath not in seen:
             seen.add(filepath)
+            # Use relative path for consistency with other checks.
+            file_path = Path(filepath)
+            rel_path = str(file_path.relative_to(root)) if file_path.is_absolute() else filepath
             findings.append(
                 Finding(
                     severity=Severity.MEDIUM,
                     check_name="structure",
                     title=f"Reserved filename '{filename}'",
                     description=(
-                        f"File '{filepath}' starts with '00', which is reserved by "
+                        f"File '{rel_path}' starts with '00', which is reserved by "
                         f"Ren'Py for engine bootstrap files. This may conflict with "
                         f"built-in scripts and cause unexpected behavior."
                     ),
-                    file=filepath,
+                    file=rel_path,
                     line=0,
                     suggestion="Rename the file to not start with '00'.",
                 )

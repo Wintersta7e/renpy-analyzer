@@ -51,9 +51,17 @@ def check(project: ProjectModel) -> list[Finding]:
                 nvl_count = 0
                 continue
 
-            # Check if this is dialogue from an NVL speaker
+            # Check if this is dialogue from an NVL speaker or
+            # narrator dialogue within an active NVL run.
+            is_nvl_line = False
             m = RE_DIALOGUE.match(raw_line)
             if m and m.group(1) in nvl_speakers:
+                is_nvl_line = True
+            elif nvl_run_start is not None and RE_NARRATOR.match(raw_line) and not RE_DIALOGUE.match(raw_line):
+                # Narrator line inside an ongoing NVL run
+                is_nvl_line = True
+
+            if is_nvl_line:
                 if nvl_run_start is None:
                     nvl_run_start = i + 1
                 nvl_count += 1
