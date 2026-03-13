@@ -13,7 +13,7 @@ def check(project: ProjectModel) -> list[Finding]:
     for call in project.calls:
         target = call.target
         # Skip dynamic calls (expression-based)
-        if not target or not target.isidentifier():
+        if not target or not all(part.isidentifier() for part in target.split(".")):
             continue
 
         body = bodies.get(target)

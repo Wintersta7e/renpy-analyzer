@@ -30,7 +30,7 @@ def check(project: ProjectModel) -> list[Finding]:
 
     for call in project.calls:
         target = call.target
-        if not target or not target.isidentifier():
+        if not target or not all(part.isidentifier() for part in target.split(".")):
             continue
         if target not in label_set:
             continue
@@ -43,6 +43,11 @@ def check(project: ProjectModel) -> list[Finding]:
         call_graph[caller].add(target)
         if (caller, target) not in call_locations:
             call_locations[(caller, target)] = (call.file, call.line)
+
+    # Pre-sort adjacency lists once to avoid re-sorting on every DFS expansion.
+    sorted_graph: dict[str, list[str]] = {
+        node: sorted(neighbors) for node, neighbors in call_graph.items()
+    }
 
     # Detect cycles using iterative DFS with coloring (avoids RecursionError
     # on projects with >1000 labels in deep call chains).
@@ -57,7 +62,7 @@ def check(project: ProjectModel) -> list[Finding]:
         parent[label_name] = None
         color[label_name] = GRAY
         stack: list[tuple[str, Iterator[str]]] = [
-            (label_name, iter(sorted(call_graph.get(label_name, set()))))
+            (label_name, iter(sorted_graph.get(label_name, ())))
         ]
         while stack:
             node, neighbors = stack[-1]
@@ -79,7 +84,7 @@ def check(project: ProjectModel) -> list[Finding]:
                 parent[neighbor] = node
                 color[neighbor] = GRAY
                 stack.append(
-                    (neighbor, iter(sorted(call_graph.get(neighbor, set()))))
+                    (neighbor, iter(sorted_graph.get(neighbor, ())))
                 )
 
     return findings

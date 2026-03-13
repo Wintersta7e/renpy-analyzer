@@ -12,7 +12,7 @@ from ..parser import RE_LABEL
 
 logger = logging.getLogger("renpy_analyzer.checks._label_body")
 RE_RETURN = re.compile(r"^\s+return\b")
-RE_JUMP = re.compile(r"^\s+jump\s+(\w+)")
+RE_JUMP = re.compile(r"^\s+jump\s+([\w.]+)")
 RE_END_REPLAY = re.compile(r"renpy\.end_replay\s*\(")
 RE_TOP_LEVEL = re.compile(r"^(?:label|init|screen|transform|define|default|style|python|image)\b")
 
@@ -33,9 +33,17 @@ class LabelBody:
 def analyze_label_bodies(project: ProjectModel) -> dict[str, LabelBody]:
     """Map label name -> LabelBody for all labels in the project.
 
+    Results are cached on the project model so that multiple check modules
+    (callreturn, replay, emptylabels) share a single computation.
+
     Reads raw files (like flow.py). When duplicate labels exist,
     keeps the first occurrence.
     """
+    # Return cached result if available.
+    cache = getattr(project, "_label_bodies_cache", None)
+    if cache is not None:
+        return cache  # type: ignore[return-value]
+
     result: dict[str, LabelBody] = {}
     root = Path(project.root_dir)
 
@@ -56,6 +64,8 @@ def analyze_label_bodies(project: ProjectModel) -> dict[str, LabelBody]:
 
         _analyze_file(lines, rel_path, result)
 
+    # Cache on the model for other check modules.
+    project._label_bodies_cache = result  # type: ignore[attr-defined]
     return result
 
 
@@ -68,6 +78,7 @@ def _analyze_file(lines: list[str], rel_path: str, result: dict[str, LabelBody])
             label_positions.append((i, m.group(2), len(m.group(1))))
 
     # Second pass: analyze each label body
+    num_labels = len(label_positions)
     for idx, (start_idx, name, label_indent) in enumerate(label_positions):
         if name in result:
             continue  # keep first occurrence
@@ -76,7 +87,8 @@ def _analyze_file(lines: list[str], rel_path: str, result: dict[str, LabelBody])
         # lower indent level, or EOF. Sublabels (deeper indent) don't end the parent.
         body_start = start_idx + 1
         body_end = len(lines)
-        for future_idx in range(idx + 1, len(label_positions)):
+        # Only check labels immediately following (most stop at idx+1).
+        for future_idx in range(idx + 1, num_labels):
             future_line_idx, _future_name, future_indent = label_positions[future_idx]
             if future_indent <= label_indent:
                 body_end = future_line_idx
