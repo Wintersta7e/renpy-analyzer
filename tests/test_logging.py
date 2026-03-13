@@ -78,7 +78,7 @@ def test_project_loader_logs_warning_on_bad_file(tmp_path, caplog, monkeypatch):
 
     _real_parse = project_mod.parse_file
 
-    def _exploding_parse(path: str) -> dict:
+    def _exploding_parse(path: str, **_kwargs: object) -> dict:
         if "bad.rpy" in path:
             raise RuntimeError("simulated parse failure")
         return _real_parse(path)

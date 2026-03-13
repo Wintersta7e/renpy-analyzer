@@ -150,7 +150,7 @@ class TestExtractFromNode:
         """Narrator lines (who=None) should not produce dialogue entries."""
         node = _mock_node("Say", who=None, what="Narration", linenumber=20)
         result = extract_from_node(node, None)
-        assert len(result["dialogue"]) == 0
+        assert len(result.get("dialogue", [])) == 0
 
     def test_scene(self):
         node = _mock_node("Scene", imspec=(("bg", "park", "day"), (), (), None, None, None), linenumber=8)
