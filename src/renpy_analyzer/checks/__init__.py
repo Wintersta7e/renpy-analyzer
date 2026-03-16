@@ -6,6 +6,7 @@ Each module exports a check(project) -> list[Finding] function.
 from . import (
     assets,
     callcycle,
+    callprereqs,
     callreturn,
     characters,
     emptylabels,
@@ -39,6 +40,7 @@ ALL_CHECKS = {
     "Text Tags": texttags.check,
     "Call Safety": callreturn.check,
     "Call Cycles": callcycle.check,
+    "Call Prerequisites": callprereqs.check,
     "Empty Labels": emptylabels.check,
     "Persistent Vars": persistent.check,
     "Project Structure": structure.check,

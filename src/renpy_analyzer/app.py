@@ -61,6 +61,7 @@ _CHECK_LABELS: dict[str, str] = {
     "Call Cycles": "Call Cycles",
     "Empty Labels": "Empty Labels",
     "Persistent Vars": "Persistent Vars",
+    "Call Prerequisites": "Call Prerequisites",
 }
 
 # Treeview column definitions: (id, heading, width, stretch, anchor)
