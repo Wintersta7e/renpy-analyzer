@@ -24,9 +24,28 @@ _SCREEN_PROPERTIES = frozenset({
     "selected_hover", "selected_idle", "selected_insensitive",
     "text_align", "text_style", "tooltip",
     # Position / size properties that also accept expressions.
-    "xpos", "ypos", "xalign", "yalign", "alpha", "rotate", "zoom",
+    "xpos", "ypos", "xalign", "yalign", "xanchor", "yanchor",
+    "alpha", "rotate", "zoom",
     "xsize", "ysize", "color", "style", "focus", "default",
 })
+
+# ---------------------------------------------------------------------------
+# Conflicting position properties
+# ---------------------------------------------------------------------------
+
+# In Ren'Py, ``xalign`` sets both ``xpos`` and ``xanchor`` internally.
+# Using ``xalign`` together with ``xpos`` or ``xanchor`` on the same
+# displayable is rejected at runtime.  Same for the y-axis equivalents.
+_POSITION_CONFLICTS: dict[str, frozenset[str]] = {
+    "xalign": frozenset({"xpos", "xanchor"}),
+    "xpos": frozenset({"xalign"}),
+    "xanchor": frozenset({"xalign"}),
+    "yalign": frozenset({"ypos", "yanchor"}),
+    "ypos": frozenset({"yalign"}),
+    "yanchor": frozenset({"yalign"}),
+}
+
+_POSITION_PROPS = frozenset(_POSITION_CONFLICTS)
 
 # Compiled pattern for stripping string literals (handles escaped quotes).
 _RE_STRIP_DOUBLE = re.compile(r'"(?:[^"\\]|\\.)*"')
@@ -90,8 +109,11 @@ def check(project: ProjectModel) -> list[Finding]:
 def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> None:
     in_screen = False
 
-    # Stack of (statement_name, indent) for nested screen statements.
-    stmt_stack: list[tuple[str, int]] = []
+    # Stack of (statement_name, indent, lineno) for nested screen statements.
+    stmt_stack: list[tuple[str, int, int]] = []
+
+    # Position properties seen per element, keyed by element's line number.
+    element_pos_props: dict[int, list[tuple[str, int]]] = {}
 
     for lineno_0, raw_line in enumerate(lines):
         lineno = lineno_0 + 1
@@ -127,7 +149,7 @@ def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> Non
             stmt_name = m_stmt.group(2)
             # Only push known displayable statements onto the stack.
             if stmt_name in _DISPLAYABLE_STATEMENTS:
-                stmt_stack.append((stmt_name, indent))
+                stmt_stack.append((stmt_name, indent, lineno))
             continue
 
         # --- Check properties ---
@@ -141,8 +163,38 @@ def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> Non
         # Skip lines that end with ``:`` (sub-statements, not properties).
         if prop_value.endswith(":"):
             if prop_name in _DISPLAYABLE_STATEMENTS:
-                stmt_stack.append((prop_name, indent))
+                stmt_stack.append((prop_name, indent, lineno))
             continue
+
+        # --- Conflicting position properties ---
+        if prop_name in _POSITION_PROPS and stmt_stack:
+            elem_key = stmt_stack[-1][2]  # parent element's line number
+            seen = element_pos_props.setdefault(elem_key, [])
+            conflicts = _POSITION_CONFLICTS[prop_name]
+            for prev_name, prev_line in seen:
+                if prev_name in conflicts:
+                    findings.append(
+                        Finding(
+                            severity=Severity.HIGH,
+                            check_name="screen_syntax",
+                            title="Conflicting position properties",
+                            description=(
+                                f"'{prop_name}' (line {lineno}) conflicts "
+                                f"with '{prev_name}' (line {prev_line}) on "
+                                f"the same element. Ren'Py rejects this "
+                                f"combination at runtime."
+                            ),
+                            file=rel_path,
+                            line=lineno,
+                            suggestion=(
+                                f"Remove either '{prop_name}' or "
+                                f"'{prev_name}'. 'xalign' sets both xpos "
+                                f"and xanchor internally; 'yalign' sets "
+                                f"both ypos and yanchor."
+                            ),
+                        )
+                    )
+            seen.append((prop_name, lineno))
 
         # --- Ternary if/else detection ---
         if (prop_name in _SCREEN_PROPERTIES or prop_name.startswith(("selected_", "hover_", "idle_", "insensitive_"))) and re.search(r"\bif\b", prop_value) and re.search(r"\belse\b", prop_value):

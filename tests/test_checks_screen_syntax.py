@@ -312,3 +312,140 @@ def test_ternary_without_else_not_flagged(tmp_path):
     findings = check(model)
     ternary = [f for f in findings if "Ternary" in f.title]
     assert len(ternary) == 0
+
+
+# --- Conflicting position properties ---
+
+
+def test_xalign_xpos_conflict(tmp_path):
+    """xalign + xpos on same element should be flagged as HIGH."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                xalign 0.5
+                xpos 100
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 1
+    assert conflict[0].severity == Severity.HIGH
+    assert "xalign" in conflict[0].description
+    assert "xpos" in conflict[0].description
+
+
+def test_yalign_ypos_conflict(tmp_path):
+    """yalign + ypos on same element should be flagged."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                yalign 0.5
+                ypos 200
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 1
+    assert "yalign" in conflict[0].description
+
+
+def test_xalign_xanchor_conflict(tmp_path):
+    """xalign + xanchor on same element should be flagged."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                xalign 0.5
+                xanchor 0.0
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 1
+
+
+def test_yalign_yanchor_conflict(tmp_path):
+    """yalign + yanchor on same element should be flagged."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                yalign 1.0
+                yanchor 0.5
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 1
+
+
+def test_triple_conflict_xalign_xanchor_xpos(tmp_path):
+    """Three conflicting x-properties should produce findings."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                xalign 0.5
+                xanchor 0.0
+                xpos 100
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    # xanchor conflicts with xalign, then xpos conflicts with xalign
+    assert len(conflict) == 2
+
+
+def test_same_axis_different_elements_no_conflict(tmp_path):
+    """xalign on one element, xpos on another — no conflict."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            vbox:
+                text "a":
+                    xalign 0.5
+                text "b":
+                    xpos 100
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 0
+
+
+def test_xpos_ypos_no_conflict(tmp_path):
+    """xpos + ypos are different axes — no conflict."""
+    model = _project(
+        tmp_path,
+        """\
+        screen test():
+            text "hello":
+                xpos 100
+                ypos 200
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 0
+
+
+def test_position_conflict_outside_screen_ignored(tmp_path):
+    """Position properties outside screen blocks are not checked."""
+    model = _project(
+        tmp_path,
+        """\
+        label start:
+            "Hello"
+    """,
+    )
+    findings = check(model)
+    conflict = [f for f in findings if "Conflicting" in f.title]
+    assert len(conflict) == 0
