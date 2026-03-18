@@ -151,3 +151,182 @@ def test_audio_case_mismatch(tmp_path):
     findings = check(model)
     case = [f for f in findings if "case mismatch" in f.title.lower()]
     assert len(case) == 1
+
+
+# --- Reserved keyword tests ---
+
+
+def test_reserved_keyword_in_image_def(tmp_path):
+    """Image definition with reserved keyword in tag should be flagged."""
+    model = _project_with_images(
+        tmp_path,
+        """\
+        image cg s05 sh behind = "cg/s05_sh_behind.png"
+        label start:
+            pass
+    """,
+    )
+    findings = check(model)
+    kw = [f for f in findings if "reserved" in f.title.lower()]
+    assert len(kw) == 1
+    assert "behind" in kw[0].title
+    assert kw[0].severity.name == "HIGH"
+
+
+def test_reserved_keyword_in_scene(tmp_path):
+    """Scene with reserved keyword consumed by regex produces no keyword finding."""
+    model = _project_with_images(
+        tmp_path,
+        """\
+        image bg room = "bg/room.png"
+        label start:
+            scene bg room with dissolve
+    """,
+    )
+    findings = check(model)
+    kw = [f for f in findings if "reserved" in f.title.lower()]
+    # 'with' is consumed by RE_SCENE as transition, not part of image_name
+    assert len(kw) == 0
+
+
+def test_reserved_keyword_in_show(tmp_path):
+    """Show statement with reserved keyword in image name should be flagged."""
+    model = _project_with_images(
+        tmp_path,
+        """\
+        image npc expression happy = "npc/happy.png"
+        label start:
+            show npc expression happy
+    """,
+    )
+    findings = check(model)
+    kw = [f for f in findings if "reserved" in f.title.lower()]
+    # RE_SHOW skips 'expression' via negative lookahead — but image def is checked
+    assert len(kw) >= 1
+
+
+def test_no_reserved_keyword_clean_names(tmp_path):
+    """Normal image names without reserved keywords produce no findings."""
+    model = _project_with_images(
+        tmp_path,
+        """\
+        image bg classroom = "bg/classroom.png"
+        image cg ending01 = "cg/ending01.png"
+        label start:
+            scene bg classroom
+    """,
+    )
+    findings = check(model)
+    kw = [f for f in findings if "reserved" in f.title.lower()]
+    assert len(kw) == 0
+
+
+def test_reserved_keyword_multiple_in_tag(tmp_path):
+    """Multiple reserved keywords in one tag should all be reported."""
+    model = _project_with_images(
+        tmp_path,
+        """\
+        image cg scene behind = "cg/bad.png"
+        label start:
+            pass
+    """,
+    )
+    findings = check(model)
+    kw = [f for f in findings if "reserved" in f.title.lower()]
+    assert len(kw) == 1
+    # Both 'scene' and 'behind' mentioned in description
+    assert "scene" in kw[0].description.lower()
+    assert "behind" in kw[0].description.lower()
+
+
+# --- Scene expression path tests ---
+
+
+def test_scene_expression_missing_file(tmp_path):
+    """scene expression with nonexistent file path should be flagged."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            scene expression "images/maps/Nonexistent.png"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if "scene expression" in f.title.lower()]
+    assert len(missing) == 1
+    assert missing[0].severity.name == "HIGH"
+
+
+def test_scene_expression_existing_file(tmp_path):
+    """scene expression with existing file path should not be flagged."""
+    game = tmp_path / "game"
+    game.mkdir()
+    img_dir = game / "images" / "maps"
+    img_dir.mkdir(parents=True)
+    (img_dir / "Classroom.png").write_bytes(b"fake png")
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            scene expression "images/maps/Classroom.png"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if "scene expression" in f.title.lower()]
+    assert len(missing) == 0
+
+
+def test_scene_expression_variable_not_checked(tmp_path):
+    """scene expression with a variable (not string) should be ignored."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            scene expression my_image_var
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if "scene expression" in f.title.lower()]
+    assert len(missing) == 0
+
+
+def test_scene_expression_rpa_skipped(tmp_path):
+    """scene expression path check should be skipped when .rpa archives present."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "archive.rpa").write_bytes(b"fake rpa")
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            scene expression "images/maps/Nonexistent.png"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if "scene expression" in f.title.lower()]
+    assert len(missing) == 0
+
+
+def test_scene_expression_single_quotes(tmp_path):
+    """scene expression with single-quoted path should also be checked."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            scene expression 'images/maps/Missing.png'
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if "scene expression" in f.title.lower()]
+    assert len(missing) == 1

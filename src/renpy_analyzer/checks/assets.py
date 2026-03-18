@@ -91,7 +91,24 @@ def check(project: ProjectModel) -> list[Finding]:
     # Check MP3 used for looping music
     _check_mp3_music(project, findings)
 
+    # Check reserved keywords in image tags
+    _check_reserved_keywords(project, findings)
+
+    # Check scene expression file paths
+    _check_scene_expression_paths(project, findings)
+
     return findings
+
+
+# Reserved words that cannot appear as parts of image tag names.
+# Using these causes Ren'Py parse errors at game launch.
+RESERVED_IMAGE_KEYWORDS = frozenset({
+    "at", "as", "behind", "onlayer", "zorder",
+    "show", "scene", "hide", "with",
+    "expression", "nopredict",
+})
+
+RE_SCENE_EXPR = re.compile(r"""^\s+scene\s+expression\s+["']([^"']+)["']""")
 
 
 def _check_mp3_music(project: ProjectModel, findings: list[Finding]) -> None:
@@ -228,3 +245,83 @@ def _check_directory_casing(root: Path, rel_path: str, ref_file: str, ref_line: 
             current = current / actual
         else:
             current = current / part
+
+
+def _check_reserved_keywords(project: ProjectModel, findings: list[Finding]) -> None:
+    """Flag image defs/refs that contain reserved Ren'Py keywords in the tag."""
+    for img in project.images:
+        parts = img.name.split()
+        bad = [p for p in parts if p.lower() in RESERVED_IMAGE_KEYWORDS]
+        if bad:
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="assets",
+                    title=f"Reserved keyword in image tag '{img.name}'",
+                    description=(
+                        f"Image definition at {img.file}:{img.line} contains "
+                        f"reserved keyword(s): {', '.join(repr(b) for b in bad)}. "
+                        f"Ren'Py will fail to parse this at launch."
+                    ),
+                    file=img.file,
+                    line=img.line,
+                    suggestion=f"Rename the image tag to avoid reserved words: {', '.join(bad)}.",
+                )
+            )
+
+    for scene in project.scenes:
+        parts = scene.image_name.split()
+        bad = [p for p in parts if p.lower() in RESERVED_IMAGE_KEYWORDS]
+        if bad:
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="assets",
+                    title=f"Reserved keyword in scene image '{scene.image_name}'",
+                    description=(
+                        f"'scene {scene.image_name}' at {scene.file}:{scene.line} contains "
+                        f"reserved keyword(s): {', '.join(repr(b) for b in bad)}. "
+                        f"Ren'Py will fail to parse this."
+                    ),
+                    file=scene.file,
+                    line=scene.line,
+                    suggestion=f"Rename the image to avoid reserved words: {', '.join(bad)}.",
+                )
+            )
+
+    for show in project.shows:
+        parts = show.image_name.split()
+        bad = [p for p in parts if p.lower() in RESERVED_IMAGE_KEYWORDS]
+        if bad:
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="assets",
+                    title=f"Reserved keyword in show image '{show.image_name}'",
+                    description=(
+                        f"'show {show.image_name}' at {show.file}:{show.line} contains "
+                        f"reserved keyword(s): {', '.join(repr(b) for b in bad)}. "
+                        f"Ren'Py will fail to parse this."
+                    ),
+                    file=show.file,
+                    line=show.line,
+                    suggestion=f"Rename the image to avoid reserved words: {', '.join(bad)}.",
+                )
+            )
+
+
+def _check_scene_expression_paths(project: ProjectModel, findings: list[Finding]) -> None:
+    """Validate file paths in 'scene expression "..."' statements."""
+    if project.has_rpa:
+        return
+    root = Path(project.root_dir)
+    for rel_file, lines in project.raw_lines.items():
+        for i, line in enumerate(lines, start=1):
+            m = RE_SCENE_EXPR.match(line)
+            if not m:
+                continue
+            rel_path = m.group(1).lstrip("/")
+            _check_file_reference(
+                root, rel_path, "Scene expression image",
+                rel_file, i, findings,
+            )
