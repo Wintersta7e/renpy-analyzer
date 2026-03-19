@@ -8,6 +8,8 @@ from pathlib import Path
 from renpy_analyzer.checks.texttags import _extract_brackets, _strip_renpy_suffixes, check
 from renpy_analyzer.models import (
     DialogueLine,
+    Menu,
+    MenuChoice,
     ProjectModel,
     Severity,
 )
@@ -286,3 +288,159 @@ def test_strip_colon_in_parens():
 def test_strip_colon_in_slice():
     """Colon inside brackets is a slice, not format spec."""
     assert _strip_renpy_suffixes("items[1:3]") == "items[1:3]"
+
+
+# --- Bracket validation integration tests ---
+
+
+def test_bracket_valid_simple_var():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="Hello [name]!")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_attribute():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="HP: [player.hp]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_conversion_flags():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="[name!u] and [x!cl]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_format_spec():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="Score: [score:.2f]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_combined_suffixes():
+    """Both orders: [expr!conv:fmt] and [expr:fmt!conv]."""
+    model = _model(
+        dialogue=[
+            DialogueLine(speaker="mc", file="s.rpy", line=1, text="[score!u:.2f]"),
+            DialogueLine(speaker="mc", file="s.rpy", line=2, text="[score:.2f!u]"),
+        ],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_ne_operator():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="[x != 5]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_nested():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="[items[0]]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_debug_equals():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="[my_var=]")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_valid_complex_expression():
+    """Function call, ternary, and quoted strings inside brackets are valid."""
+    model = _model(
+        dialogue=[
+            DialogueLine(speaker="mc", file="s.rpy", line=1, text='[len(items)]'),
+            DialogueLine(speaker="mc", file="s.rpy", line=2, text='["yes" if flag else "no"]'),
+            DialogueLine(speaker="mc", file="s.rpy", line=3, text='[player.name + " san"]'),
+        ],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_escaped_no_finding():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=1, text="Price [[100] coins")],
+    )
+    findings = check(model)
+    assert len(findings) == 0
+
+
+def test_bracket_unescaped_natural_language():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=5, text="Status: [Sent photo]")],
+    )
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.HIGH
+    assert "Sent photo" in findings[0].description
+    assert "[[" in findings[0].suggestion
+
+
+def test_bracket_unescaped_multi_word():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=5, text="[Click here] to continue")],
+    )
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.HIGH
+
+
+def test_bracket_empty():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=5, text="Empty [] here")],
+    )
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.HIGH
+
+
+def test_bracket_unclosed():
+    model = _model(
+        dialogue=[DialogueLine(speaker="mc", file="s.rpy", line=5, text="Hello [name")],
+    )
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.HIGH
+    assert findings[0].title == "Unclosed square bracket"
+    assert "missing closing" in findings[0].description
+
+
+def test_bracket_menu_choice():
+    model = _model(
+        menus=[
+            Menu(
+                file="s.rpy",
+                line=10,
+                choices=[
+                    MenuChoice(
+                        text="Go to [the park]",
+                        line=11,
+                        content_lines=1,
+                        has_jump=False,
+                        has_return=False,
+                    ),
+                ],
+            ),
+        ],
+    )
+    findings = check(model)
+    assert len(findings) == 1
+    assert findings[0].severity == Severity.HIGH
+    assert "the park" in findings[0].description

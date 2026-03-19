@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ..models import Finding, ProjectModel, Severity
+from ..models import DialogueLine, Finding, ProjectModel, Severity
 
 # Tags that require a closing {/tag}
 PAIRED_TAGS = frozenset(
@@ -255,13 +255,61 @@ def _strip_renpy_suffixes(expr: str) -> str:
     return expr
 
 
+def _validate_brackets(text: str, file: str, line: int) -> list[Finding]:
+    """Check for unescaped square brackets containing invalid Python."""
+    findings: list[Finding] = []
+    if "[" not in text:
+        return findings
+
+    for expr, _pos, closed in _extract_brackets(text):
+        # Unclosed bracket — always an error (Ren'Py raises
+        # "String ends with an open format operation")
+        if not closed:
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="texttags",
+                    title="Unclosed square bracket",
+                    description=(
+                        f"Unclosed '[{expr}' in text at {file}:{line} "
+                        f"— missing closing ']'. Ren'Py will crash at runtime."
+                    ),
+                    file=file,
+                    line=line,
+                    suggestion="Add the missing ']', or escape with '[[' for a literal bracket.",
+                )
+            )
+            continue
+
+        stripped = _strip_renpy_suffixes(expr).strip()
+        try:
+            compile(stripped, "<string>", "eval")
+        except SyntaxError:
+            findings.append(
+                Finding(
+                    severity=Severity.HIGH,
+                    check_name="texttags",
+                    title="Unescaped square bracket",
+                    description=(
+                        f"Unescaped '[{expr}]' in text at {file}:{line} "
+                        f"— Ren'Py will try to evaluate this as Python and crash. "
+                        f"Use '[[' to escape literal brackets."
+                    ),
+                    file=file,
+                    line=line,
+                    suggestion="Replace '[' with '[[' for literal brackets, or verify this is a valid Python expression.",
+                )
+            )
+    return findings
+
+
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
 
     # Deduplicate dialogue lines — the parser may capture the same line
     # via both RE_DIALOGUE and RE_DIALOGUE_FALLBACK
     seen: set[tuple[str, int]] = set()
-    unique_dialogue: list = []
+    unique_dialogue: list[DialogueLine] = []
     for dl in project.dialogue:
         key = (dl.file, dl.line)
         if key not in seen:
@@ -291,5 +339,14 @@ def check(project: ProjectModel) -> list[Finding]:
                     suggestion="Check text tag syntax: paired tags need {{/tag}}, verify tag names.",
                 )
             )
+
+        # Validate [square bracket] interpolation
+        findings.extend(_validate_brackets(dl.text, dl.file, dl.line))
+
+    # Check menu choice text for unescaped brackets
+    for menu in project.menus:
+        for choice in menu.choices:
+            if choice.text:
+                findings.extend(_validate_brackets(choice.text, menu.file, choice.line))
 
     return findings
