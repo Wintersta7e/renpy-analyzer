@@ -5,7 +5,7 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from renpy_analyzer.checks.texttags import check
+from renpy_analyzer.checks.texttags import _extract_brackets, check
 from renpy_analyzer.models import (
     DialogueLine,
     ProjectModel,
@@ -195,3 +195,43 @@ def test_parser_multiline_not_captured(tmp_path):
     result = parse_file(path)
     assert len(result["dialogue"]) == 1
     assert result["dialogue"][0].text == "First line"
+
+
+# --- Bracket extraction unit tests ---
+
+
+def test_extract_simple_var():
+    assert _extract_brackets("Hello [name]!") == [("name", 6, True)]
+
+
+def test_extract_nested_brackets():
+    assert _extract_brackets("Val: [items[0]]") == [("items[0]", 5, True)]
+
+
+def test_extract_escaped_skip():
+    assert _extract_brackets("Price [[100] coins") == []
+
+
+def test_extract_quoted_bracket():
+    """Bracket inside quotes should not close the expression."""
+    result = _extract_brackets('[player.name + " ]san"]')
+    assert len(result) == 1
+    assert result[0][0] == 'player.name + " ]san"'
+    assert result[0][2] is True
+
+
+def test_extract_unclosed():
+    """Unclosed bracket yields partial content with closed=False."""
+    result = _extract_brackets("Hello [name")
+    assert len(result) == 1
+    assert result[0][0] == "name"
+    assert result[0][2] is False
+
+
+def test_extract_multiple():
+    result = _extract_brackets("[a] and [b]")
+    assert result == [("a", 0, True), ("b", 8, True)]
+
+
+def test_extract_empty_brackets():
+    assert _extract_brackets("text [] here") == [("", 5, True)]

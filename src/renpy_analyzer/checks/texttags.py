@@ -87,6 +87,91 @@ def _validate_tags(text: str) -> list[str]:
     return errors
 
 
+def _extract_brackets(text: str) -> list[tuple[str, int, bool]]:
+    """Extract bracket expressions from text, handling escapes and nesting.
+
+    Returns ``(expression_content, start_position, closed)`` tuples.
+    *closed* is True when the bracket was properly terminated with ``]``,
+    False when end-of-string was reached with the bracket still open.
+    Skips ``[[`` escape sequences.  Tracks quote and bracket depth so that
+    ``]`` inside strings or nested ``[...]`` does not close prematurely.
+    """
+    results: list[tuple[str, int, bool]] = []
+    i = 0
+    length = len(text)
+
+    while i < length:
+        c = text[i]
+
+        # [[ escape — skip both chars
+        if c == "[" and i + 1 < length and text[i + 1] == "[":
+            i += 2
+            continue
+
+        if c == "[":
+            # Start capturing expression
+            start = i
+            i += 1
+            depth = 1
+            buf: list[str] = []
+            in_quote: str | None = None  # current quote delimiter or None
+
+            while i < length and depth > 0:
+                ch = text[i]
+
+                # Handle quoted strings inside expression
+                if in_quote is not None:
+                    buf.append(ch)
+                    # Check for matching end quote (triple or single)
+                    if len(in_quote) == 3:
+                        if text[i : i + 3] == in_quote:
+                            buf.append(text[i + 1])
+                            buf.append(text[i + 2])
+                            i += 3
+                            in_quote = None
+                            continue
+                    elif ch == in_quote and (i == 0 or text[i - 1] != "\\"):
+                        in_quote = None
+                    i += 1
+                    continue
+
+                # Check for start of quoted string
+                if ch in ('"', "'"):
+                    # Triple quote?
+                    if i + 2 < length and text[i + 1] == ch and text[i + 2] == ch:
+                        in_quote = ch * 3
+                        buf.append(ch)
+                        buf.append(text[i + 1])
+                        buf.append(text[i + 2])
+                        i += 3
+                        continue
+                    else:
+                        in_quote = ch
+                        buf.append(ch)
+                        i += 1
+                        continue
+
+                if ch == "[":
+                    depth += 1
+                elif ch == "]":
+                    depth -= 1
+                    if depth == 0:
+                        results.append(("".join(buf), start, True))
+                        i += 1
+                        break
+
+                buf.append(ch)
+                i += 1
+            else:
+                # End of string with unclosed bracket
+                if depth > 0:
+                    results.append(("".join(buf), start, False))
+        else:
+            i += 1
+
+    return results
+
+
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
 
