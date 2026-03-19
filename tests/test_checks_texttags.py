@@ -5,7 +5,7 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from renpy_analyzer.checks.texttags import _extract_brackets, check
+from renpy_analyzer.checks.texttags import _extract_brackets, _strip_renpy_suffixes, check
 from renpy_analyzer.models import (
     DialogueLine,
     ProjectModel,
@@ -235,3 +235,54 @@ def test_extract_multiple():
 
 def test_extract_empty_brackets():
     assert _extract_brackets("text [] here") == [("", 5, True)]
+
+
+# --- Suffix stripping unit tests ---
+
+
+def test_strip_no_suffix():
+    assert _strip_renpy_suffixes("name") == "name"
+
+
+def test_strip_format_spec():
+    assert _strip_renpy_suffixes("score:.2f") == "score"
+
+
+def test_strip_conversion_flag():
+    assert _strip_renpy_suffixes("name!u") == "name"
+
+
+def test_strip_multi_conversion():
+    assert _strip_renpy_suffixes("name!cl") == "name"
+
+
+def test_strip_conv_and_format():
+    assert _strip_renpy_suffixes("score!u:.2f") == "score"
+
+
+def test_strip_reverse_order():
+    """Ren'Py accepts [expr:fmt!conv] too."""
+    assert _strip_renpy_suffixes("score:.2f!u") == "score"
+
+
+def test_strip_debug_equals():
+    assert _strip_renpy_suffixes("my_var=") == "my_var"
+
+
+def test_strip_debug_equals_with_conv():
+    assert _strip_renpy_suffixes("var=!u") == "var"
+
+
+def test_strip_ne_operator_preserved():
+    """!= is an operator, not a conversion separator."""
+    assert _strip_renpy_suffixes("x != 5") == "x != 5"
+
+
+def test_strip_colon_in_parens():
+    """Colon inside parens is not a format spec (e.g., dict-like)."""
+    assert _strip_renpy_suffixes("(1, 'one')") == "(1, 'one')"
+
+
+def test_strip_colon_in_slice():
+    """Colon inside brackets is a slice, not format spec."""
+    assert _strip_renpy_suffixes("items[1:3]") == "items[1:3]"

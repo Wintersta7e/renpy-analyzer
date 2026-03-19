@@ -172,6 +172,89 @@ def _extract_brackets(text: str) -> list[tuple[str, int, bool]]:
     return results
 
 
+def _find_depth0_char(expr: str, char: str) -> int:
+    """Find the last occurrence of *char* at depth 0 (outside parens, brackets, quotes).
+
+    Returns the index, or -1 if not found.  Scans left-to-right, collecting
+    all depth-0 matches, and returns the rightmost one.
+    For ``!``, skips ``!=`` (operator, not conversion separator).
+    """
+    paren = 0  # ()
+    bracket = 0  # []
+    in_quote: str | None = None
+    depth0_positions: list[int] = []
+    i = 0
+    length = len(expr)
+
+    while i < length:
+        ch = expr[i]
+
+        if in_quote is not None:
+            if len(in_quote) == 3:
+                if expr[i : i + 3] == in_quote:
+                    i += 3
+                    in_quote = None
+                    continue
+            elif ch == in_quote and (i == 0 or expr[i - 1] != "\\"):
+                in_quote = None
+            i += 1
+            continue
+
+        if ch in ('"', "'"):
+            if i + 2 < length and expr[i + 1] == ch and expr[i + 2] == ch:
+                in_quote = ch * 3
+                i += 3
+                continue
+            else:
+                in_quote = ch
+                i += 1
+                continue
+
+        if ch == "(":
+            paren += 1
+        elif ch == ")":
+            paren -= 1
+        elif ch == "[":
+            bracket += 1
+        elif ch == "]":
+            bracket -= 1
+        elif ch == char and paren == 0 and bracket == 0:
+            # For '!', skip '!=' (operator)
+            if char == "!" and i + 1 < length and expr[i + 1] == "=":
+                i += 1
+            else:
+                depth0_positions.append(i)
+        i += 1
+
+    return depth0_positions[-1] if depth0_positions else -1
+
+
+def _strip_renpy_suffixes(expr: str) -> str:
+    """Strip Ren'Py interpolation suffixes: format spec, conversion flags, debug ``=``.
+
+    Stripping order (outermost first, right-to-left):
+    1. ``:format_spec`` — outermost ``:`` at depth 0
+    2. ``!conversion_flags`` — outermost ``!`` at depth 0 (skip ``!=``)
+    3. ``=`` debug suffix — trailing ``=`` that is not ``==``, ``!=``, ``<=``, ``>=``
+    """
+    # 1. Strip format spec
+    colon_pos = _find_depth0_char(expr, ":")
+    if colon_pos > 0:
+        expr = expr[:colon_pos]
+
+    # 2. Strip conversion flags
+    bang_pos = _find_depth0_char(expr, "!")
+    if bang_pos > 0:
+        expr = expr[:bang_pos]
+
+    # 3. Strip debug = suffix
+    stripped = expr.rstrip()
+    if stripped.endswith("=") and not stripped.endswith(("==", "!=", "<=", ">=")):
+        expr = stripped[:-1]
+
+    return expr
+
+
 def check(project: ProjectModel) -> list[Finding]:
     findings: list[Finding] = []
 
