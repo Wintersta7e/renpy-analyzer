@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        pass_filenames: false
+        args: [src/renpy_analyzer/]
+        additional_dependencies:
+          - reportlab>=4.0
+          - click>=8.0
+          - platformdirs>=3.0
