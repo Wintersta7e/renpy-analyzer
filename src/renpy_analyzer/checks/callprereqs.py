@@ -65,10 +65,7 @@ def check(project: ProjectModel) -> list[Finding]:
                     ),
                     file=call.file,
                     line=call.line,
-                    suggestion=(
-                        f"Add '$ {missing[0]} = ...' (and any other "
-                        f"missing variables) before the call."
-                    ),
+                    suggestion=(f"Add '$ {missing[0]} = ...' (and any other missing variables) before the call."),
                 )
             )
 
@@ -80,7 +77,7 @@ def _collect_requirements(
     out: dict[str, list[str]],
 ) -> None:
     """Scan raw lines for ``# @requires:`` comments above label defs."""
-    for _rel_path, lines in project.raw_lines.items():
+    for lines in project.raw_lines.values():
         pending_requires: list[str] | None = None
 
         for raw_line in lines:
@@ -90,9 +87,7 @@ def _collect_requirements(
             m_req = RE_REQUIRES.match(stripped)
             if m_req:
                 vars_str = m_req.group(1)
-                pending_requires = [
-                    v.strip() for v in vars_str.split(",") if v.strip()
-                ]
+                pending_requires = [v.strip() for v in vars_str.split(",") if v.strip()]
                 continue
 
             # If we have a pending @requires, check if next non-comment

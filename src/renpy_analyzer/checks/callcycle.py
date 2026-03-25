@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from ..models import Finding, ProjectModel, Severity
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def check(project: ProjectModel) -> list[Finding]:
@@ -45,14 +48,12 @@ def check(project: ProjectModel) -> list[Finding]:
             call_locations[(caller, target)] = (call.file, call.line)
 
     # Pre-sort adjacency lists once to avoid re-sorting on every DFS expansion.
-    sorted_graph: dict[str, list[str]] = {
-        node: sorted(neighbors) for node, neighbors in call_graph.items()
-    }
+    sorted_graph: dict[str, list[str]] = {node: sorted(neighbors) for node, neighbors in call_graph.items()}
 
     # Detect cycles using iterative DFS with coloring (avoids RecursionError
     # on projects with >1000 labels in deep call chains).
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color: dict[str, int] = {name: WHITE for name in label_set}
+    WHITE, GRAY, BLACK = 0, 1, 2  # noqa: N806 — DFS color constants
+    color: dict[str, int] = dict.fromkeys(label_set, WHITE)
     parent: dict[str, str | None] = {}
     reported_cycles: set[frozenset[str]] = set()
 
@@ -61,9 +62,7 @@ def check(project: ProjectModel) -> list[Finding]:
             continue
         parent[label_name] = None
         color[label_name] = GRAY
-        stack: list[tuple[str, Iterator[str]]] = [
-            (label_name, iter(sorted_graph.get(label_name, ())))
-        ]
+        stack: list[tuple[str, Iterator[str]]] = [(label_name, iter(sorted_graph.get(label_name, ())))]
         while stack:
             node, neighbors = stack[-1]
             try:
@@ -83,16 +82,12 @@ def check(project: ProjectModel) -> list[Finding]:
             elif color[neighbor] == WHITE:
                 parent[neighbor] = node
                 color[neighbor] = GRAY
-                stack.append(
-                    (neighbor, iter(sorted_graph.get(neighbor, ())))
-                )
+                stack.append((neighbor, iter(sorted_graph.get(neighbor, ()))))
 
     return findings
 
 
-def _find_containing_label(
-    file: str, line: int, labels_by_file: dict[str, list[tuple[int, str]]]
-) -> str | None:
+def _find_containing_label(file: str, line: int, labels_by_file: dict[str, list[tuple[int, str]]]) -> str | None:
     """Find the label that contains the given line in the given file."""
     file_labels = labels_by_file.get(file)
     if not file_labels:
@@ -109,9 +104,7 @@ def _find_containing_label(
     return containing
 
 
-def _reconstruct_cycle(
-    node: str, back_edge_target: str, parent: dict[str, str | None]
-) -> list[str]:
+def _reconstruct_cycle(node: str, back_edge_target: str, parent: dict[str, str | None]) -> list[str]:
     """Reconstruct the cycle from parent chain."""
     if node == back_edge_target:
         return [node]

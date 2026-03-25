@@ -6,9 +6,12 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ..models import ProjectModel
 from ..parser import RE_LABEL
+
+if TYPE_CHECKING:
+    from ..models import ProjectModel
 
 logger = logging.getLogger("renpy_analyzer.checks._label_body")
 RE_RETURN = re.compile(r"^\s+return\b")
@@ -133,6 +136,6 @@ def _analyze_file(lines: list[str], rel_path: str, result: dict[str, LabelBody])
 
         body.body_lines = meaningful_lines
         body.ends_with_jump = last_meaningful_is_jump
-        body.only_pass = (meaningful_lines > 0 and all_pass)
+        body.only_pass = meaningful_lines > 0 and all_pass
 
         result[name] = body

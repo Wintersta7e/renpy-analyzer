@@ -26,7 +26,7 @@ def game_model():
 @pytest.fixture
 def all_findings(game_model):
     findings = []
-    for _name, checker in ALL_CHECKS.items():
+    for checker in ALL_CHECKS.values():
         findings.extend(checker(game_model))
     return findings
 

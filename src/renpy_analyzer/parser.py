@@ -42,7 +42,9 @@ RE_CHARACTER = re.compile(r'^\s*(?:define|default)\s+(\w+)\s*=\s*Character\(\s*"
 RE_SCENE = re.compile(
     r"^\s+scene\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)(?:\s+with\s+(\w+))?"
 )
-RE_SHOW = re.compile(r"^\s+show\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)")
+RE_SHOW = re.compile(
+    r"^\s+show\s+(?!expression\b)([\w]+(?:\s+(?!with\b|at\b|behind\b|onlayer\b|zorder\b|as\b|transform\b)[\w]+)*)"
+)
 RE_IMAGE_ASSIGN = re.compile(r"^image\s+([\w\s]+?)\s*=\s*(.+)")
 RE_IMAGE_BLOCK = re.compile(r"^image\s+([\w\s]+?)\s*:")
 RE_MUSIC_PLAY = re.compile(r"""^\s+play\s+music\s+["']([^"']+)["']""")
@@ -126,6 +128,7 @@ RENPY_KEYWORDS = frozenset(
         "foreground",
     }
 )
+
 
 def _get_indent(line: str) -> int:
     return len(line) - len(line.lstrip())
@@ -310,7 +313,7 @@ def parse_file(filepath: str, content: str | None = None) -> dict:
                 menu_indent = new_menu_indent
                 current_menu = Menu(file=display_path, line=lineno)
                 continue
-            elif new_menu_indent > menu_indent:
+            if new_menu_indent > menu_indent:
                 # Nested menu — push current menu state onto the stack
                 menu_stack.append((current_menu, menu_indent, current_choice, choice_indent))
                 menu_indent = new_menu_indent
@@ -492,8 +495,10 @@ def parse_file(filepath: str, content: str | None = None) -> dict:
             )
             at_m = RE_AT_TRANSFORM.search(line)
             if at_m:
-                for tf_name in re.findall(r"\w+", at_m.group(1)):
-                    transform_refs.append(TransformRef(name=tf_name, file=display_path, line=lineno))
+                transform_refs.extend(
+                    TransformRef(name=tf_name, file=display_path, line=lineno)
+                    for tf_name in re.findall(r"\w+", at_m.group(1))
+                )
             continue
 
         # --- Show ---
@@ -508,8 +513,10 @@ def parse_file(filepath: str, content: str | None = None) -> dict:
             )
             at_m = RE_AT_TRANSFORM.search(line)
             if at_m:
-                for tf_name in re.findall(r"\w+", at_m.group(1)):
-                    transform_refs.append(TransformRef(name=tf_name, file=display_path, line=lineno))
+                transform_refs.extend(
+                    TransformRef(name=tf_name, file=display_path, line=lineno)
+                    for tf_name in re.findall(r"\w+", at_m.group(1))
+                )
             continue
 
         # --- Music play ---

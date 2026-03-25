@@ -127,13 +127,13 @@ class RenpyAnalyzerApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(4, weight=1)
 
-        self._build_header()       # Row 0
+        self._build_header()  # Row 0
         self._build_input_panel()  # Row 1
-        self._build_checks_panel() # Row 2
-        self._build_action_bar()   # Row 3
-        self._build_results()      # Row 4
-        self._build_detail_panel() # Row 5
-        self._build_status_bar()   # Row 6
+        self._build_checks_panel()  # Row 2
+        self._build_action_bar()  # Row 3
+        self._build_results()  # Row 4
+        self._build_detail_panel()  # Row 5
+        self._build_status_bar()  # Row 6
 
         # Configure tag colors on the Treeview (after it's built)
         self._configure_treeview_tags()
@@ -227,14 +227,10 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         if game_ver and matched:
             matched_ver = detect_sdk_version(matched) or "?"
-            self._sdk_note.set(
-                f"Game uses Ren'Py {format_version(game_ver)} — SDK {matched_ver} will be used"
-            )
+            self._sdk_note.set(f"Game uses Ren'Py {format_version(game_ver)} — SDK {matched_ver} will be used")
             self._sdk_note_label.configure(text_color="#28A745")
         elif game_ver:
-            self._sdk_note.set(
-                f"No SDK for Ren'Py {game_ver[0]}.x — regex parser will be used"
-            )
+            self._sdk_note.set(f"No SDK for Ren'Py {game_ver[0]}.x — regex parser will be used")
             self._sdk_note_label.configure(text_color=TEXT_DIM)
         else:
             self._sdk_note.set("Could not detect game version")
@@ -291,33 +287,47 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Game path row
         ctk.CTkLabel(
-            panel, text="Game Path:", font=ctk.CTkFont(size=12),
+            panel,
+            text="Game Path:",
+            font=ctk.CTkFont(size=12),
             text_color=TEXT_PRIMARY,
         ).grid(row=0, column=0, sticky="w", padx=(12, 6), pady=(10, 2))
 
         self._path_entry = ctk.CTkEntry(
-            panel, textvariable=self._path_var,
+            panel,
+            textvariable=self._path_var,
             placeholder_text="Select a Ren'Py project folder...",
-            fg_color=MIDNIGHT_BG, border_color=PANEL_BORDER, text_color=TEXT_PRIMARY,
+            fg_color=MIDNIGHT_BG,
+            border_color=PANEL_BORDER,
+            text_color=TEXT_PRIMARY,
         )
         self._path_entry.grid(row=0, column=1, sticky="ew", padx=4, pady=(10, 2))
 
         self._browse_game_btn = ctk.CTkButton(
-            panel, text="Browse...", width=80, height=28,
-            fg_color=PANEL_LIGHTER, hover_color=PANEL_BORDER,
-            text_color=TEXT_PRIMARY, command=self._browse_folder,
+            panel,
+            text="Browse...",
+            width=80,
+            height=28,
+            fg_color=PANEL_LIGHTER,
+            hover_color=PANEL_BORDER,
+            text_color=TEXT_PRIMARY,
+            command=self._browse_folder,
         )
         self._browse_game_btn.grid(row=0, column=2, columnspan=2, padx=(4, 12), pady=(10, 2))
 
         # Game dir note
         ctk.CTkLabel(
-            panel, textvariable=self._game_dir_note,
-            font=ctk.CTkFont(size=10), text_color="#28A745",
+            panel,
+            textvariable=self._game_dir_note,
+            font=ctk.CTkFont(size=10),
+            text_color="#28A745",
         ).grid(row=1, column=1, sticky="w", padx=4, pady=(0, 0))
 
         # SDK row: label + dropdown + Add + Remove
         ctk.CTkLabel(
-            panel, text="SDK:", font=ctk.CTkFont(size=12),
+            panel,
+            text="SDK:",
+            font=ctk.CTkFont(size=12),
             text_color=TEXT_PRIMARY,
         ).grid(row=2, column=0, sticky="w", padx=(12, 6), pady=(4, 2))
 
@@ -339,23 +349,35 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._sdk_dropdown.grid(row=2, column=1, sticky="ew", padx=4, pady=(4, 2))
 
         self._add_sdk_btn = ctk.CTkButton(
-            panel, text="Add SDK...", width=90, height=28,
-            fg_color=PANEL_LIGHTER, hover_color=PANEL_BORDER,
-            text_color=TEXT_PRIMARY, command=self._add_sdk,
+            panel,
+            text="Add SDK...",
+            width=90,
+            height=28,
+            fg_color=PANEL_LIGHTER,
+            hover_color=PANEL_BORDER,
+            text_color=TEXT_PRIMARY,
+            command=self._add_sdk,
         )
         self._add_sdk_btn.grid(row=2, column=2, padx=(4, 2), pady=(4, 2))
 
         self._remove_sdk_btn = ctk.CTkButton(
-            panel, text="Remove", width=70, height=28,
-            fg_color=PANEL_LIGHTER, hover_color="#DC3545",
-            text_color=TEXT_PRIMARY, command=self._remove_sdk,
+            panel,
+            text="Remove",
+            width=70,
+            height=28,
+            fg_color=PANEL_LIGHTER,
+            hover_color="#DC3545",
+            text_color=TEXT_PRIMARY,
+            command=self._remove_sdk,
         )
         self._remove_sdk_btn.grid(row=2, column=3, padx=(2, 12), pady=(4, 2))
 
         # SDK note
         self._sdk_note_label = ctk.CTkLabel(
-            panel, textvariable=self._sdk_note,
-            font=ctk.CTkFont(size=10), text_color=TEXT_DIM,
+            panel,
+            textvariable=self._sdk_note,
+            font=ctk.CTkFont(size=10),
+            text_color=TEXT_DIM,
         )
         self._sdk_note_label.grid(row=3, column=1, sticky="w", padx=4, pady=(0, 8))
 
@@ -365,7 +387,9 @@ class RenpyAnalyzerApp(ctk.CTk):
         panel.grid(row=2, column=0, sticky="ew", padx=20, pady=(8, 0))
 
         ctk.CTkLabel(
-            panel, text="Checks", font=ctk.CTkFont(size=12, weight="bold"),
+            panel,
+            text="Checks",
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=TEXT_PRIMARY,
         ).grid(row=0, column=0, columnspan=5, sticky="w", padx=12, pady=(8, 4))
 
@@ -402,9 +426,15 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Analyze button
         self._analyze_btn = ctk.CTkButton(
-            bar, text="Analyze", font=ctk.CTkFont(size=13, weight="bold"),
-            width=110, height=34, fg_color=ACCENT_BLUE, hover_color="#1858C4",
-            text_color="#FFFFFF", command=self._start_analysis,
+            bar,
+            text="Analyze",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            width=110,
+            height=34,
+            fg_color=ACCENT_BLUE,
+            hover_color="#1858C4",
+            text_color="#FFFFFF",
+            command=self._start_analysis,
         )
         self._analyze_btn.pack(side="left", padx=(0, 12))
 
@@ -414,7 +444,8 @@ class RenpyAnalyzerApp(ctk.CTk):
             btn = ctk.CTkButton(
                 bar,
                 text=f"{sev.name} (0)",
-                width=110, height=32,
+                width=110,
+                height=32,
                 font=ctk.CTkFont(size=12),
                 fg_color=color if self._severity_active[sev] else PANEL_LIGHTER,
                 hover_color=PANEL_BORDER,
@@ -426,10 +457,16 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Export PDF button
         self._export_btn = ctk.CTkButton(
-            bar, text="Export PDF", width=110, height=32,
-            font=ctk.CTkFont(size=12), fg_color=PANEL_LIGHTER,
-            hover_color=PANEL_BORDER, text_color=TEXT_PRIMARY,
-            state="disabled", command=self._export_pdf,
+            bar,
+            text="Export PDF",
+            width=110,
+            height=32,
+            font=ctk.CTkFont(size=12),
+            fg_color=PANEL_LIGHTER,
+            hover_color=PANEL_BORDER,
+            text_color=TEXT_PRIMARY,
+            state="disabled",
+            command=self._export_pdf,
         )
         self._export_btn.pack(side="right")
 
@@ -457,7 +494,8 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         for col_id, heading, width, stretch, anchor in _TREE_COLUMNS:
             self._tree.heading(
-                col_id, text=heading,
+                col_id,
+                text=heading,
                 command=lambda c=col_id: self._sort_by_column(c),  # type: ignore[misc]
             )
             self._tree.column(col_id, width=width, stretch=stretch, anchor=anchor)  # type: ignore[call-overload]
@@ -479,21 +517,30 @@ class RenpyAnalyzerApp(ctk.CTk):
         # Not gridded initially — shown only during analysis
 
         self._progress_label = ctk.CTkLabel(
-            self._progress_frame, text="Preparing...",
-            font=ctk.CTkFont(size=12), text_color=TEXT_PRIMARY,
+            self._progress_frame,
+            text="Preparing...",
+            font=ctk.CTkFont(size=12),
+            text_color=TEXT_PRIMARY,
         )
         self._progress_label.pack(fill="x", padx=20, pady=(40, 4))
 
         self._progress_bar = ctk.CTkProgressBar(
-            self._progress_frame, width=400,
-            progress_color=ACCENT_BLUE, fg_color=PANEL_LIGHTER,
+            self._progress_frame,
+            width=400,
+            progress_color=ACCENT_BLUE,
+            fg_color=PANEL_LIGHTER,
         )
         self._progress_bar.pack(fill="x", padx=40, pady=(4, 8))
         self._progress_bar.set(0)
 
         self._cancel_btn = ctk.CTkButton(
-            self._progress_frame, text="Cancel", width=90, height=30,
-            fg_color="#DC3545", hover_color="#A71D2A", text_color="#FFFFFF",
+            self._progress_frame,
+            text="Cancel",
+            width=90,
+            height=30,
+            fg_color="#DC3545",
+            hover_color="#A71D2A",
+            text_color="#FFFFFF",
             command=self._request_cancel,
         )
         self._cancel_btn.pack(pady=(4, 20))
@@ -525,7 +572,8 @@ class RenpyAnalyzerApp(ctk.CTk):
         self._detail_text.tag_config("suggestion", foreground="#28A745")
         for sev in Severity:
             self._detail_text.tag_config(
-                f"title_{sev.name}", foreground=SEVERITY_COLORS[sev],
+                f"title_{sev.name}",
+                foreground=SEVERITY_COLORS[sev],
             )
 
     def _build_status_bar(self) -> None:
@@ -536,8 +584,11 @@ class RenpyAnalyzerApp(ctk.CTk):
         status_bar.grid_propagate(False)
 
         ctk.CTkLabel(
-            status_bar, textvariable=self._status_var,
-            font=ctk.CTkFont(size=11), text_color=TEXT_DIM, anchor="w",
+            status_bar,
+            textvariable=self._status_var,
+            font=ctk.CTkFont(size=11),
+            text_color=TEXT_DIM,
+            anchor="w",
         ).pack(fill="x", side="left")
 
     # -----------------------------------------------------------------------
@@ -595,7 +646,6 @@ class RenpyAnalyzerApp(ctk.CTk):
             color = SEVERITY_COLORS[sev]
             self._tree.tag_configure(f"{sev.name}_even", foreground=color, background=PANEL_BG)
             self._tree.tag_configure(f"{sev.name}_odd", foreground=color, background=PANEL_LIGHTER)
-
 
     # -----------------------------------------------------------------------
     # Actions
@@ -683,7 +733,7 @@ class RenpyAnalyzerApp(ctk.CTk):
             try:
                 self.after(0, self._analysis_failed, error_msg)
             except Exception:
-                logger.error("Could not deliver error to GUI: %s", error_msg)
+                logger.exception("Could not deliver error to GUI: %s", error_msg)
 
     # -----------------------------------------------------------------------
     # GUI callbacks
@@ -728,9 +778,7 @@ class RenpyAnalyzerApp(ctk.CTk):
                 c = self._severity_counts.get(sev, 0)
                 if c > 0:
                     parts.append(f"{c} {sev.name.lower()}")
-            self._status_var.set(
-                f"Analysis complete {parser_label} — {total} findings ({', '.join(parts)})"
-            )
+            self._status_var.set(f"Analysis complete {parser_label} — {total} findings ({', '.join(parts)})")
 
     def _request_cancel(self) -> None:
         self._cancel_event.set()
@@ -756,9 +804,7 @@ class RenpyAnalyzerApp(ctk.CTk):
     def _apply_filters_and_sort(self) -> None:
         """Rebuild the Treeview contents based on current filters and sort state."""
         # Filter
-        self._filtered_findings = [
-            f for f in self._findings if self._severity_active.get(f.severity, True)
-        ]
+        self._filtered_findings = [f for f in self._findings if self._severity_active.get(f.severity, True)]
 
         # Sort
         col = self._sort_column
@@ -783,7 +829,8 @@ class RenpyAnalyzerApp(ctk.CTk):
             parity = "even" if idx % 2 == 0 else "odd"
             tag = f"{f.severity.name}_{parity}"
             self._tree.insert(
-                "", "end",
+                "",
+                "end",
                 iid=str(idx),
                 values=(f.severity.name, f.check_name, f.title, f.file, f.line),
                 tags=(tag,),
@@ -944,14 +991,14 @@ class RenpyAnalyzerApp(ctk.CTk):
             try:
                 self.after(0, self._pdf_export_done, output_path, None)
             except Exception:
-                logger.error("Could not deliver PDF success to GUI")
+                logger.exception("Could not deliver PDF success to GUI")
         except Exception as exc:
             logger.exception("PDF export failed")
             error_msg = f"{type(exc).__name__}: {exc}" if str(exc) else f"{type(exc).__name__}: (no details available)"
             try:
                 self.after(0, self._pdf_export_done, output_path, error_msg)
             except Exception:
-                logger.error("Could not deliver PDF error to GUI: %s", error_msg)
+                logger.exception("Could not deliver PDF error to GUI: %s", error_msg)
 
     def _pdf_export_done(self, output_path: str, error: str | None) -> None:
         self._export_btn.configure(state="normal")
@@ -979,15 +1026,11 @@ class RenpyAnalyzerApp(ctk.CTk):
             logger.debug("Could not read window geometry during save", exc_info=True)
 
         try:
-            self._settings.check_toggles = {
-                name: var.get() for name, var in self._check_vars.items()
-            }
+            self._settings.check_toggles = {name: var.get() for name, var in self._check_vars.items()}
         except Exception:
             logger.debug("Could not read check toggles during save", exc_info=True)
 
-        self._settings.severity_filters = {
-            sev.name: active for sev, active in self._severity_active.items()
-        }
+        self._settings.severity_filters = {sev.name: active for sev, active in self._severity_active.items()}
         self._settings.sort_column = self._sort_column
         self._settings.sort_ascending = self._sort_ascending
         self._settings.save()

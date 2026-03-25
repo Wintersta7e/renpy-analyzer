@@ -16,8 +16,7 @@ logger = logging.getLogger("renpy_analyzer.project")
 _MODEL_KEYS = [
     f.name
     for f in dataclasses.fields(ProjectModel)
-    if f.name not in ("root_dir", "files", "has_rpa", "has_rpyc_only", "raw_lines")
-    and f.default_factory is list
+    if f.name not in ("root_dir", "files", "has_rpa", "has_rpyc_only", "raw_lines") and f.default_factory is list
 ]
 
 
@@ -43,15 +42,12 @@ def detect_sub_games(path: str) -> list[str]:
     root = Path(path)
     if (root / "game").is_dir():
         return []  # Single game — no sub-games
-    sub_games = []
     try:
         children = sorted(root.iterdir())
     except OSError:
         logger.warning("Could not list directory: %s", root)
         return []
-    for child in children:
-        if child.is_dir() and (child / "game").is_dir():
-            sub_games.append(child.name)
+    sub_games = [child.name for child in children if child.is_dir() and (child / "game").is_dir()]
     return sub_games if len(sub_games) > 1 else []
 
 
@@ -79,10 +75,7 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     else:
         scan_dir = root
 
-    rpy_files = sorted(
-        f for f in scan_dir.rglob("*.rpy")
-        if not _is_engine_file(f)
-    )
+    rpy_files = sorted(f for f in scan_dir.rglob("*.rpy") if not _is_engine_file(f))
     model = ProjectModel(root_dir=str(scan_dir))
     model.files = [str(f) for f in rpy_files]
     model.has_rpa = any(scan_dir.glob("*.rpa"))
@@ -142,7 +135,8 @@ def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, s
     if sdk_skipped:
         logger.warning(
             "SDK parser skipped %d/%d files",
-            sdk_skipped, len(rpy_files),
+            sdk_skipped,
+            len(rpy_files),
         )
 
 

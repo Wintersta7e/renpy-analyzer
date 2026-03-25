@@ -73,9 +73,7 @@ def find_sdk_python(sdk_path: str) -> str:
             logger.debug("Found SDK Python: %s", candidate)
             return str(candidate)
 
-    raise RuntimeError(
-        f"Could not find SDK Python binary in {sdk_path}/lib/. Is this a valid Ren'Py SDK directory?"
-    )
+    raise RuntimeError(f"Could not find SDK Python binary in {sdk_path}/lib/. Is this a valid Ren'Py SDK directory?")
 
 
 def validate_sdk_path(sdk_path: str) -> bool:
@@ -89,7 +87,6 @@ def validate_sdk_path(sdk_path: str) -> bool:
     from .version import detect_renpy_version
 
     return detect_renpy_version(sdk_path) is not None
-
 
 
 def detect_sdk_version(sdk_path: str) -> str | None:
@@ -160,7 +157,7 @@ def parse_files_with_sdk(
     creationflags: int = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
 
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 — args are controlled (SDK python + our worker script)
             [python_bin, worker_script],
             input=json.dumps(request),
             capture_output=True,
@@ -209,22 +206,22 @@ def convert_file_result(data: dict, filepath: str) -> dict:
     """
     rel_path = filepath  # Caller will rewrite to relative path
 
-    def _labels():
+    def _labels() -> list[Label]:
         return [Label(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("labels", [])]
 
-    def _jumps():
+    def _jumps() -> list[Jump]:
         return [Jump(target=d["target"], file=rel_path, line=d["line"]) for d in data.get("jumps", [])]
 
-    def _calls():
+    def _calls() -> list[Call]:
         return [Call(target=d["target"], file=rel_path, line=d["line"]) for d in data.get("calls", [])]
 
-    def _dynamic_jumps():
+    def _dynamic_jumps() -> list[DynamicJump]:
         return [
             DynamicJump(expression=d["expression"], file=rel_path, line=d["line"])
             for d in data.get("dynamic_jumps", [])
         ]
 
-    def _variables():
+    def _variables() -> list[Variable]:
         return [
             Variable(
                 name=d["name"],
@@ -237,8 +234,8 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             for d in data.get("variables", [])
         ]
 
-    def _menus():
-        menus = []
+    def _menus() -> list[Menu]:
+        menus: list[Menu] = []
         for m in data.get("menus", []):
             choices = [
                 MenuChoice(
@@ -254,7 +251,7 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             menus.append(Menu(file=rel_path, line=m["line"], choices=choices))
         return menus
 
-    def _scenes():
+    def _scenes() -> list[SceneRef]:
         return [
             SceneRef(
                 image_name=d["image_name"],
@@ -265,10 +262,10 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             for d in data.get("scenes", [])
         ]
 
-    def _shows():
+    def _shows() -> list[ShowRef]:
         return [ShowRef(image_name=d["image_name"], file=rel_path, line=d["line"]) for d in data.get("shows", [])]
 
-    def _images():
+    def _images() -> list[ImageDef]:
         return [
             ImageDef(
                 name=d["name"],
@@ -279,7 +276,7 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             for d in data.get("images", [])
         ]
 
-    def _music():
+    def _music() -> list[MusicRef]:
         return [
             MusicRef(
                 path=d["path"],
@@ -290,7 +287,7 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             for d in data.get("music", [])
         ]
 
-    def _characters():
+    def _characters() -> list[CharacterDef]:
         return [
             CharacterDef(
                 shorthand=d["shorthand"],
@@ -301,33 +298,33 @@ def convert_file_result(data: dict, filepath: str) -> dict:
             for d in data.get("characters", [])
         ]
 
-    def _dialogue():
+    def _dialogue() -> list[DialogueLine]:
         return [
             DialogueLine(speaker=d["speaker"], file=rel_path, line=d["line"], text=d.get("text", ""))
             for d in data.get("dialogue", [])
         ]
 
-    def _conditions():
+    def _conditions() -> list[Condition]:
         return [
             Condition(expression=d["expression"], file=rel_path, line=d["line"]) for d in data.get("conditions", [])
         ]
 
-    def _screen_defs():
+    def _screen_defs() -> list[ScreenDef]:
         return [ScreenDef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("screen_defs", [])]
 
-    def _screen_refs():
+    def _screen_refs() -> list[ScreenRef]:
         return [
             ScreenRef(name=d["name"], file=rel_path, line=d["line"], action=d.get("action", "show"))
             for d in data.get("screen_refs", [])
         ]
 
-    def _transform_defs():
+    def _transform_defs() -> list[TransformDef]:
         return [TransformDef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("transform_defs", [])]
 
-    def _transform_refs():
+    def _transform_refs() -> list[TransformRef]:
         return [TransformRef(name=d["name"], file=rel_path, line=d["line"]) for d in data.get("transform_refs", [])]
 
-    def _translations():
+    def _translations() -> list[TranslationBlock]:
         return [
             TranslationBlock(
                 language=d["language"],

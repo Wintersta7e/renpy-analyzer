@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .checks import ALL_CHECKS
 from .models import Finding, Severity
 from .project import detect_sub_games, load_project
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger("renpy_analyzer.analyzer")
 
@@ -66,11 +69,20 @@ def run_analysis(
     sub_games = detect_sub_games(project_path)
     if sub_games:
         findings = _run_multi_game_analysis(
-            project_path, sub_games, checks, _progress, _cancelled, sdk_path,
+            project_path,
+            sub_games,
+            checks,
+            _progress,
+            _cancelled,
+            sdk_path,
         )
     else:
         findings = _run_single_analysis(
-            project_path, checks, _progress, _cancelled, sdk_path,
+            project_path,
+            checks,
+            _progress,
+            _cancelled,
+            sdk_path,
         )
 
     findings.sort(key=lambda f: f.severity)
@@ -159,11 +171,17 @@ def _run_multi_game_analysis(
         base_frac = sub_idx / total_sub
         next_frac = (sub_idx + 1) / total_sub
 
-        def _sub_progress(msg: str, frac: float, _base=base_frac, _span=next_frac - base_frac, _name=sub_name) -> None:
+        def _sub_progress(
+            msg: str, frac: float, _base: float = base_frac, _span: float = next_frac - base_frac, _name: str = sub_name
+        ) -> None:
             _progress(f"[{_name}] {msg}", _base + frac * _span)
 
         sub_findings = _run_single_analysis(
-            sub_path, checks, _sub_progress, _cancelled, sdk_path,
+            sub_path,
+            checks,
+            _sub_progress,
+            _cancelled,
+            sdk_path,
             file_prefix=sub_name,
         )
         all_findings.extend(sub_findings)

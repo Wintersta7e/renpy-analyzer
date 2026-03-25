@@ -20,7 +20,7 @@ import math
 import os
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -81,9 +81,21 @@ _SEV_FG = {
 }
 
 _CATEGORY_ORDER = [
-    "Labels", "Variables", "Logic", "Menus", "Assets", "Characters", "Flow",
-    "Screens", "Transforms", "Translations", "Text Tags",
-    "Call Safety", "Call Cycles", "Empty Labels", "Persistent Vars",
+    "Labels",
+    "Variables",
+    "Logic",
+    "Menus",
+    "Assets",
+    "Characters",
+    "Flow",
+    "Screens",
+    "Transforms",
+    "Translations",
+    "Text Tags",
+    "Call Safety",
+    "Call Cycles",
+    "Empty Labels",
+    "Persistent Vars",
 ]
 
 _CHECK_TO_CATEGORY = {
@@ -365,7 +377,9 @@ class _PDFBuilder:
         self.c.drawString(x, self._rl_y(self.y), _safe(text))
         return _tw(text, font, size)
 
-    def _text_at(self, x: float, y: float, text: str, font: str = _F, size: float = 10, color: tuple | None = None) -> float:
+    def _text_at(
+        self, x: float, y: float, text: str, font: str = _F, size: float = 10, color: tuple | None = None
+    ) -> float:
         """Insert text at explicit (x, y) position. Returns text width."""
         if color is None:
             color = _C["text"]
@@ -374,8 +388,17 @@ class _PDFBuilder:
         self.c.drawString(x, self._rl_y(y), _safe(text))
         return _tw(text, font, size)
 
-    def _rect(self, x0: float, y0: float, x1: float, y1: float,
-              fill=None, border=None, width: float = 0.5, radius: float | None = None) -> None:
+    def _rect(
+        self,
+        x0: float,
+        y0: float,
+        x1: float,
+        y1: float,
+        fill: tuple[float, float, float] | None = None,
+        border: tuple[float, float, float] | None = None,
+        width: float = 0.5,
+        radius: float | None = None,
+    ) -> None:
         """Draw a rectangle from top-down coords (x0, y0) to (x1, y1)."""
         w = x1 - x0
         h = y1 - y0
@@ -404,7 +427,10 @@ class _PDFBuilder:
         bw = tw + hpad * 2
         bh = size + vpad * 2
         self._rect(
-            x, y - bh + vpad, x + bw, y + vpad,
+            x,
+            y - bh + vpad,
+            x + bw,
+            y + vpad,
             fill=bg,
             border=None,
             radius=0.25,
@@ -420,8 +446,9 @@ class _PDFBuilder:
         self.c.setLineWidth(0.6)
         self.c.line(_ML, self._rl_y(self.y), _PAGE_W - _MR, self._rl_y(self.y))
 
-    def _line(self, x1: float, y1: float, x2: float, y2: float,
-              color: tuple = _C["accent"], width: float = 0.5) -> None:
+    def _line(
+        self, x1: float, y1: float, x2: float, y2: float, color: tuple = _C["accent"], width: float = 0.5
+    ) -> None:
         """Draw a line between two points in top-down coords."""
         self.c.setStrokeColorRGB(*color)
         self.c.setLineWidth(width)
@@ -491,7 +518,7 @@ class _PDFBuilder:
 
         # Date  (baseline at y=94)
         self.y = 94
-        date_str = datetime.now().strftime("%B %d, %Y at %H:%M")
+        date_str = datetime.now(tz=timezone.utc).astimezone().strftime("%B %d, %Y at %H:%M")
         self._text(_ML, date_str, font=_F, size=9, color=_C["text3"])
 
         # -- Below banner --
@@ -551,7 +578,9 @@ class _PDFBuilder:
         hdr_baseline = hdr_top + 13
         self._text_at(_ML + 5, hdr_baseline, "Category", font=_FB, size=9, color=_C["white"])
         for i, sev in enumerate(Severity):
-            self._text_at(_ML + label_col_w + i * sev_col_w + 5, hdr_baseline, sev.name, font=_FB, size=8, color=_C["white"])
+            self._text_at(
+                _ML + label_col_w + i * sev_col_w + 5, hdr_baseline, sev.name, font=_FB, size=8, color=_C["white"]
+            )
         self._text_at(total_col_x + 5, hdr_baseline, "TOTAL", font=_FB, size=8, color=_C["white"])
         self.y = hdr_top + row_h
 
@@ -563,7 +592,10 @@ class _PDFBuilder:
                 continue
             row_top = self.y
             self._rect(
-                _ML, row_top, _PAGE_W - _MR, row_top + row_h,
+                _ML,
+                row_top,
+                _PAGE_W - _MR,
+                row_top + row_h,
                 fill=_C["table_alt"] if (row_top // row_h) % 2 == 0 else _C["page_bg"],
                 border=None,
             )
@@ -572,7 +604,9 @@ class _PDFBuilder:
             for i, sev in enumerate(Severity):
                 c = counts.get(sev, 0)
                 if c > 0:
-                    self._text_at(_ML + label_col_w + i * sev_col_w + 5, baseline, str(c), font=_F, size=9, color=_SEV_BG[sev])
+                    self._text_at(
+                        _ML + label_col_w + i * sev_col_w + 5, baseline, str(c), font=_F, size=9, color=_SEV_BG[sev]
+                    )
             self._text_at(total_col_x + 5, baseline, str(row_total), font=_FB, size=9, color=_C["white"])
             self.y = row_top + row_h
             # Subtle divider
@@ -661,15 +695,21 @@ class _PDFBuilder:
         bar_h = 34
         # Section background
         self._rect(
-            _ML, self.y - 6, _PAGE_W - _MR, self.y - 6 + bar_h,
+            _ML,
+            self.y - 6,
+            _PAGE_W - _MR,
+            self.y - 6 + bar_h,
             fill=_C["section_bg"],
             border=None,
             radius=0.02,
         )
         # Left accent bar (severity-tinted or white)
-        accent = sev_color if sev_color else _C["white"]
+        accent = sev_color or _C["white"]
         self._rect(
-            _ML, self.y - 6, _ML + 4, self.y - 6 + bar_h,
+            _ML,
+            self.y - 6,
+            _ML + 4,
+            self.y - 6 + bar_h,
             fill=accent,
             border=None,
         )
@@ -715,7 +755,10 @@ class _PDFBuilder:
 
         # ---- Draw card background (exact height known) ----
         self._rect(
-            card_left, card_top, card_right, card_top + card_h,
+            card_left,
+            card_top,
+            card_right,
+            card_top + card_h,
             fill=_C["card_bg"],
             border=_C["card_border"],
             width=0.4,
@@ -723,7 +766,10 @@ class _PDFBuilder:
         )
         # Left accent
         self._rect(
-            card_left, card_top, card_left + 4, card_top + card_h,
+            card_left,
+            card_top,
+            card_left + 4,
+            card_top + card_h,
             fill=sev_bg,
             border=None,
         )
@@ -767,7 +813,10 @@ class _PDFBuilder:
             # Suggestion background
             sugg_h = len(sugg_lines) * 12 + 6
             self._rect(
-                inner_left, self.y - 10, card_right - 14, self.y - 10 + sugg_h,
+                inner_left,
+                self.y - 10,
+                card_right - 14,
+                self.y - 10 + sugg_h,
                 fill=_C["suggest_bg"],
                 border=None,
                 radius=0.02,
@@ -787,7 +836,10 @@ class _PDFBuilder:
         loc_h = _loc_block_h(capped, overflow=overflow > 0)
         if loc_h > 0:
             self._rect(
-                inner_left - 4, self.y - 9, card_right - 10, self.y - 9 + loc_h,
+                inner_left - 4,
+                self.y - 9,
+                card_right - 10,
+                self.y - 9 + loc_h,
                 fill=_C["loc_bg"],
                 border=None,
                 radius=0.02,
@@ -812,7 +864,10 @@ class _PDFBuilder:
 
         # Card background
         self._rect(
-            card_left, card_top, card_right, card_top + card_h,
+            card_left,
+            card_top,
+            card_right,
+            card_top + card_h,
             fill=_C["card_bg"],
             border=_C["card_border"],
             width=0.3,
@@ -820,7 +875,10 @@ class _PDFBuilder:
         )
         # Thin left accent
         self._rect(
-            card_left, card_top, card_left + 3, card_top + card_h,
+            card_left,
+            card_top,
+            card_left + 3,
+            card_top + card_h,
             fill=sev_bg,
             border=None,
         )
@@ -855,7 +913,10 @@ class _PDFBuilder:
             sugg_lines = _wrap(g.suggestion, inner_w - 16, _F, 8.5)
             sugg_h = len(sugg_lines) * 11 + 6
             self._rect(
-                inner_left, self.y - 10, card_right - 12, self.y - 10 + sugg_h,
+                inner_left,
+                self.y - 10,
+                card_right - 12,
+                self.y - 10 + sugg_h,
                 fill=_C["suggest_bg"],
                 border=None,
                 radius=0.02,
@@ -875,7 +936,10 @@ class _PDFBuilder:
         loc_h = _loc_block_h(capped, overflow=overflow > 0)
         if loc_h > 0:
             self._rect(
-                inner_left - 4, self.y - 9, card_right - 10, self.y - 9 + loc_h,
+                inner_left - 4,
+                self.y - 9,
+                card_right - 10,
+                self.y - 9 + loc_h,
                 fill=_C["loc_bg"],
                 border=None,
                 radius=0.02,
@@ -890,7 +954,10 @@ class _PDFBuilder:
         row_h = 18
         self.ensure_space(row_h + 30)
         self._rect(
-            _ML, self.y - 2, _PAGE_W - _MR, self.y - 2 + row_h,
+            _ML,
+            self.y - 2,
+            _PAGE_W - _MR,
+            self.y - 2 + row_h,
             fill=_C["table_hdr_bg"],
             border=None,
         )
@@ -924,7 +991,10 @@ class _PDFBuilder:
             row_top = self.y - 2
             if idx % 2 == 0:
                 self._rect(
-                    _ML, row_top, _PAGE_W - _MR, row_top + row_h,
+                    _ML,
+                    row_top,
+                    _PAGE_W - _MR,
+                    row_top + row_h,
                     fill=_C["table_alt"],
                     border=None,
                 )
@@ -998,7 +1068,9 @@ class _PDFBuilder:
         self._text_at(tl + 8, hdr_y, "Category", font=_FB, size=9, color=_C["text2"])
         for i, sev in enumerate(Severity):
             self._text_at(tl + label_col_w + i * sev_col_w + 5, hdr_y, sev.name, font=_FB, size=8, color=_C["text2"])
-        self._text_at(tl + label_col_w + len(Severity) * sev_col_w + 5, hdr_y, "TOTAL", font=_FB, size=8, color=_C["text2"])
+        self._text_at(
+            tl + label_col_w + len(Severity) * sev_col_w + 5, hdr_y, "TOTAL", font=_FB, size=8, color=_C["text2"]
+        )
         self.y += row_h + 2
 
         # Data rows
@@ -1022,14 +1094,26 @@ class _PDFBuilder:
             for i, sev in enumerate(Severity):
                 c = counts.get(sev, 0)
                 if c > 0:
-                    self._text_at(tl + label_col_w + i * sev_col_w + 5, data_y, str(c), font=_F, size=9, color=_SEV_BG[sev])
-            self._text_at(tl + label_col_w + len(Severity) * sev_col_w + 5, data_y, str(row_total), font=_FB, size=9, color=_C["white"])
+                    self._text_at(
+                        tl + label_col_w + i * sev_col_w + 5, data_y, str(c), font=_F, size=9, color=_SEV_BG[sev]
+                    )
+            self._text_at(
+                tl + label_col_w + len(Severity) * sev_col_w + 5,
+                data_y,
+                str(row_total),
+                font=_FB,
+                size=9,
+                color=_C["white"],
+            )
             self.y += row_h
             row_idx += 1
 
         # Grand total row
         self._rect(
-            tl, self.y - 2, tl + table_w, self.y - 2 + row_h,
+            tl,
+            self.y - 2,
+            tl + table_w,
+            self.y - 2 + row_h,
             fill=_C["card_bg"],
             border=_C["card_border"],
             width=0.5,
@@ -1040,13 +1124,20 @@ class _PDFBuilder:
             c = grand_by_sev.get(sev, 0)
             if c > 0:
                 self._text_at(tl + label_col_w + i * sev_col_w + 5, gt_y, str(c), font=_FB, size=9, color=_SEV_BG[sev])
-        self._text_at(tl + label_col_w + len(Severity) * sev_col_w + 5, gt_y, str(grand_total), font=_FB, size=9, color=_C["white"])
+        self._text_at(
+            tl + label_col_w + len(Severity) * sev_col_w + 5,
+            gt_y,
+            str(grand_total),
+            font=_FB,
+            size=9,
+            color=_C["white"],
+        )
         self.y += row_h + 20
 
         # Footer note
         self._text(
             _ML,
-            f"Generated by Ren'Py Analyzer on {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"Generated by Ren'Py Analyzer on {datetime.now(tz=timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M')}",
             font=_F,
             size=8,
             color=_C["text3"],
@@ -1115,10 +1206,7 @@ def generate_pdf(
     b1.save()
 
     # Adjust page numbers: +1 for the TOC page that will be inserted on page 2
-    toc_data = [
-        (name, title, page + 1, level)
-        for name, title, page, level in b1._toc_entries
-    ]
+    toc_data = [(name, title, page + 1, level) for name, title, page, level in b1._toc_entries]
 
     # --- Pass 2: real render with TOC on page 2 -----------------------------
     # Clear _wrap cache between reports to avoid unbounded growth.

@@ -134,7 +134,7 @@ def _check_case_mismatches(defaults: dict[str, list], findings: list[Finding]) -
         lower_map.setdefault(name.lower(), []).append(name)
 
     reported_names: set[str] = set()
-    for _lower_name, variants in lower_map.items():
+    for variants in lower_map.values():
         if len(variants) > 1:
             for vname in variants:
                 var = defaults[vname][0]
@@ -166,7 +166,7 @@ def _check_case_mismatches(defaults: dict[str, list], findings: list[Finding]) -
         if base != name:
             family_map.setdefault(base.lower(), []).append(name)
 
-    for _base_lower, members in family_map.items():
+    for members in family_map.values():
         if len(members) < 2:
             continue
         bases = [re.sub(r"\d+$", "", m) for m in members]
@@ -315,9 +315,7 @@ def _check_config_runtime_mutation(project: ProjectModel, findings: list[Finding
             )
 
 
-RE_UNPICKLABLE = re.compile(
-    r"^\s*(?:lambda\b|open\s*\(|(?:iter|zip|map|filter|reversed)\s*\()"
-)
+RE_UNPICKLABLE = re.compile(r"^\s*(?:lambda\b|open\s*\(|(?:iter|zip|map|filter|reversed)\s*\()")
 
 
 def _check_unpicklable_store(project: ProjectModel, findings: list[Finding]) -> None:
