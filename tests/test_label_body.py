@@ -14,11 +14,14 @@ def _project(tmp_path, script_content):
 
 
 def test_label_with_return(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             "Hello"
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert "start" in bodies
     assert bodies["start"].has_return is True
@@ -26,13 +29,16 @@ def test_label_with_return(tmp_path):
 
 
 def test_label_ending_with_jump(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             "Hello"
             jump ending
         label ending:
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["start"].ends_with_jump is True
     assert bodies["start"].has_return is False
@@ -41,39 +47,48 @@ def test_label_ending_with_jump(tmp_path):
 
 def test_label_with_both_jump_and_return(tmp_path):
     """Label with return in one branch and jump in another."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             if condition:
                 return
             jump fallback
         label fallback:
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["start"].has_return is True
     assert bodies["start"].ends_with_jump is True
 
 
 def test_empty_label(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label empty_one:
         label has_content:
             "Hello"
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["empty_one"].body_lines == 0
     assert bodies["has_content"].body_lines == 2
 
 
 def test_label_with_only_pass(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label stub:
             pass
         label real:
             "Content"
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["stub"].only_pass is True
     assert bodies["stub"].body_lines == 1
@@ -81,7 +96,9 @@ def test_label_with_only_pass(tmp_path):
 
 
 def test_multi_label_boundary_detection(tmp_path):
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label first:
             "Line 1"
             "Line 2"
@@ -89,7 +106,8 @@ def test_multi_label_boundary_detection(tmp_path):
         label second:
             "Line A"
             jump first
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["first"].body_lines == 3
     assert bodies["first"].has_return is True
@@ -99,13 +117,16 @@ def test_multi_label_boundary_detection(tmp_path):
 
 def test_label_with_comments_only(tmp_path):
     """Comments don't count as meaningful content."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label commented:
             # This is a comment
             # Another comment
         label next:
             return
-    """)
+    """,
+    )
     bodies = analyze_label_bodies(model)
     assert bodies["commented"].body_lines == 0
 
@@ -113,14 +134,20 @@ def test_label_with_comments_only(tmp_path):
 def test_duplicate_labels_keeps_first(tmp_path):
     game = tmp_path / "game"
     game.mkdir()
-    (game / "a.rpy").write_text(textwrap.dedent("""\
+    (game / "a.rpy").write_text(
+        textwrap.dedent("""\
         label dup:
             return
-    """), encoding="utf-8")
-    (game / "b.rpy").write_text(textwrap.dedent("""\
+    """),
+        encoding="utf-8",
+    )
+    (game / "b.rpy").write_text(
+        textwrap.dedent("""\
         label dup:
             jump somewhere
-    """), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     model = load_project(str(tmp_path))
     bodies = analyze_label_bodies(model)
     assert "dup" in bodies
@@ -130,6 +157,7 @@ def test_duplicate_labels_keeps_first(tmp_path):
 
 def test_empty_project(tmp_path):
     from renpy_analyzer.models import ProjectModel
+
     model = ProjectModel(root_dir=str(tmp_path))
     bodies = analyze_label_bodies(model)
     assert bodies == {}

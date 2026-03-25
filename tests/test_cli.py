@@ -115,7 +115,9 @@ def test_cli_text_severity_sections(tmp_path):
     assert "=== Ren'Py Analyzer Results ===" in result.output
     assert "unique)" in result.output
     # At least one severity section header present
-    has_section = any(f"-- {s.name}" in result.output for s in __import__("renpy_analyzer.models", fromlist=["Severity"]).Severity)
+    has_section = any(
+        f"-- {s.name}" in result.output for s in __import__("renpy_analyzer.models", fromlist=["Severity"]).Severity
+    )
     assert has_section
 
 

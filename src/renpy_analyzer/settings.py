@@ -18,15 +18,17 @@ _APP_NAME = "renpy-analyzer"
 _SETTINGS_FILE = "settings.json"
 
 # Fields that Settings.__init__ accepts (used to filter unknown keys)
-_KNOWN_FIELDS = frozenset({
-    "sdk_paths",
-    "game_path",
-    "window_geometry",
-    "check_toggles",
-    "severity_filters",
-    "sort_column",
-    "sort_ascending",
-})
+_KNOWN_FIELDS = frozenset(
+    {
+        "sdk_paths",
+        "game_path",
+        "window_geometry",
+        "check_toggles",
+        "severity_filters",
+        "sort_column",
+        "sort_ascending",
+    }
+)
 
 # Expected types for each field — used to reject wrong-typed values from JSON
 _FIELD_TYPES: dict[str, type] = {

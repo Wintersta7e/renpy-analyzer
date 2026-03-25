@@ -39,9 +39,7 @@ def test_detect_version_8x_game_with_game_subdir(tmp_path):
     """Detect version from game/renpy/vc_version.py."""
     renpy_dir = tmp_path / "game" / "renpy"
     renpy_dir.mkdir(parents=True)
-    (renpy_dir / "vc_version.py").write_text(
-        "version = '8.1.3.23091805'\n"
-    )
+    (renpy_dir / "vc_version.py").write_text("version = '8.1.3.23091805'\n")
     ver = detect_renpy_version(str(tmp_path))
     assert ver == (8, 1, 3)
 
@@ -76,12 +74,8 @@ def test_detect_version_old_vc_version_no_string(tmp_path):
     """Old vc_version.py with only integer vc_version falls back to __init__.py."""
     renpy_dir = tmp_path / "renpy"
     renpy_dir.mkdir()
-    (renpy_dir / "vc_version.py").write_text(
-        "vc_version = 2178\nofficial = True\nnightly = False\n"
-    )
-    (renpy_dir / "__init__.py").write_text(
-        "version_tuple = (7, 4, 10, vc_version)\n"
-    )
+    (renpy_dir / "vc_version.py").write_text("vc_version = 2178\nofficial = True\nnightly = False\n")
+    (renpy_dir / "__init__.py").write_text("version_tuple = (7, 4, 10, vc_version)\n")
     ver = detect_renpy_version(str(tmp_path))
     assert ver == (7, 4, 10)
 

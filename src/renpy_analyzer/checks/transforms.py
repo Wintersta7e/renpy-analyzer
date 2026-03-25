@@ -91,8 +91,7 @@ def check(project: ProjectModel) -> list[Finding]:
                     check_name="transforms",
                     title=f"Unused transform '{name}'",
                     description=(
-                        f"Transform '{name}' defined at {d.file}:{d.line} "
-                        f"is never referenced in an 'at' clause."
+                        f"Transform '{name}' defined at {d.file}:{d.line} is never referenced in an 'at' clause."
                     ),
                     file=d.file,
                     line=d.line,

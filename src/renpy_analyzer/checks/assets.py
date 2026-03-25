@@ -102,11 +102,21 @@ def check(project: ProjectModel) -> list[Finding]:
 
 # Reserved words that cannot appear as parts of image tag names.
 # Using these causes Ren'Py parse errors at game launch.
-RESERVED_IMAGE_KEYWORDS = frozenset({
-    "at", "as", "behind", "onlayer", "zorder",
-    "show", "scene", "hide", "with",
-    "expression", "nopredict",
-})
+RESERVED_IMAGE_KEYWORDS = frozenset(
+    {
+        "at",
+        "as",
+        "behind",
+        "onlayer",
+        "zorder",
+        "show",
+        "scene",
+        "hide",
+        "with",
+        "expression",
+        "nopredict",
+    }
+)
 
 RE_SCENE_EXPR = re.compile(r"""^\s+scene\s+expression\s+["']([^"']+)["']""")
 
@@ -322,6 +332,10 @@ def _check_scene_expression_paths(project: ProjectModel, findings: list[Finding]
                 continue
             rel_path = m.group(1).lstrip("/")
             _check_file_reference(
-                root, rel_path, "Scene expression image",
-                rel_file, i, findings,
+                root,
+                rel_path,
+                "Scene expression image",
+                rel_file,
+                i,
+                findings,
             )

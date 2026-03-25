@@ -111,13 +111,13 @@ def test_settings_rejects_wrong_types(tmp_path, monkeypatch):
     monkeypatch.setattr("renpy_analyzer.settings._config_path", lambda: tmp_path)
 
     data = {
-        "sdk_paths": "not_a_list",          # should be list
-        "game_path": "/valid/path",          # correct
-        "check_toggles": "all_on",           # should be dict
-        "severity_filters": [1, 2, 3],       # should be dict
-        "sort_ascending": "yes",             # should be bool
-        "sort_column": True,                 # should be str
-        "window_geometry": 1050,             # should be str
+        "sdk_paths": "not_a_list",  # should be list
+        "game_path": "/valid/path",  # correct
+        "check_toggles": "all_on",  # should be dict
+        "severity_filters": [1, 2, 3],  # should be dict
+        "sort_ascending": "yes",  # should be bool
+        "sort_column": True,  # should be str
+        "window_geometry": 1050,  # should be str
     }
     filepath = tmp_path / _SETTINGS_FILE
     filepath.write_text(json.dumps(data), encoding="utf-8")

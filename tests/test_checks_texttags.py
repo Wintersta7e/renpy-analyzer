@@ -365,7 +365,7 @@ def test_bracket_valid_complex_expression():
     """Function call, ternary, and quoted strings inside brackets are valid."""
     model = _model(
         dialogue=[
-            DialogueLine(speaker="mc", file="s.rpy", line=1, text='[len(items)]'),
+            DialogueLine(speaker="mc", file="s.rpy", line=1, text="[len(items)]"),
             DialogueLine(speaker="mc", file="s.rpy", line=2, text='["yes" if flag else "no"]'),
             DialogueLine(speaker="mc", file="s.rpy", line=3, text='[player.name + " san"]'),
         ],

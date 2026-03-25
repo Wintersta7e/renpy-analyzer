@@ -145,11 +145,10 @@ def _extract_brackets(text: str) -> list[tuple[str, int, bool]]:
                         buf.append(text[i + 2])
                         i += 3
                         continue
-                    else:
-                        in_quote = ch
-                        buf.append(ch)
-                        i += 1
-                        continue
+                    in_quote = ch
+                    buf.append(ch)
+                    i += 1
+                    continue
 
                 if ch == "[":
                     depth += 1
@@ -205,10 +204,9 @@ def _find_depth0_char(expr: str, char: str) -> int:
                 in_quote = ch * 3
                 i += 3
                 continue
-            else:
-                in_quote = ch
-                i += 1
-                continue
+            in_quote = ch
+            i += 1
+            continue
 
         if ch == "(":
             paren += 1

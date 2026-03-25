@@ -15,7 +15,7 @@ def _project(tmp_path, script_content):
 
 def _make_nvl_lines(speaker, count):
     """Generate `count` NVL dialogue lines."""
-    return "\n".join(f'    {speaker} "Line {i+1}"' for i in range(count))
+    return "\n".join(f'    {speaker} "Line {i + 1}"' for i in range(count))
 
 
 def test_nvl_overflow_flagged(tmp_path):

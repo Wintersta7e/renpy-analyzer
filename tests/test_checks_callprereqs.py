@@ -13,9 +13,7 @@ from renpy_analyzer.project import load_project
 def _project(tmp_path: Path, content: str) -> ProjectModel:
     game = tmp_path / "game"
     game.mkdir()
-    (game / "script.rpy").write_text(
-        textwrap.dedent(content), encoding="utf-8"
-    )
+    (game / "script.rpy").write_text(textwrap.dedent(content), encoding="utf-8")
     return load_project(str(tmp_path))
 
 

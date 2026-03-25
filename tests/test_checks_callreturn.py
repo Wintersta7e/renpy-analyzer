@@ -15,21 +15,26 @@ def _project(tmp_path, script_content):
 
 def test_call_to_label_with_return(tmp_path):
     """Call to a label that returns — no finding."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call helper
             return
         label helper:
             "Doing work"
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 0
 
 
 def test_call_to_label_that_jumps(tmp_path):
     """Call to a label that ends with jump — HIGH finding (stack leak)."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call helper
             return
@@ -38,7 +43,8 @@ def test_call_to_label_that_jumps(tmp_path):
             jump ending
         label ending:
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 1
     assert findings[0].severity.name == "HIGH"
@@ -49,18 +55,23 @@ def test_call_to_label_that_jumps(tmp_path):
 
 def test_call_to_missing_label(tmp_path):
     """Call to undefined label — no finding (handled by labels check)."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call nonexistent
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 0
 
 
 def test_call_to_label_with_conditional_return(tmp_path):
     """Label has return in one branch but ends with jump — MEDIUM finding."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call helper
             return
@@ -70,7 +81,8 @@ def test_call_to_label_with_conditional_return(tmp_path):
             jump fallback
         label fallback:
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 1
     assert findings[0].severity.name == "MEDIUM"
@@ -79,13 +91,16 @@ def test_call_to_label_with_conditional_return(tmp_path):
 
 def test_call_to_label_with_only_pass(tmp_path):
     """Label with only pass — CRITICAL finding (no return)."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call stub
             return
         label stub:
             pass
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 1
     assert findings[0].severity.name == "CRITICAL"
@@ -93,7 +108,9 @@ def test_call_to_label_with_only_pass(tmp_path):
 
 def test_multiple_calls_to_same_bad_label(tmp_path):
     """Multiple calls to same non-returning label — one finding per call site."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call bad_label
             call bad_label
@@ -102,14 +119,17 @@ def test_multiple_calls_to_same_bad_label(tmp_path):
             jump somewhere
         label somewhere:
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 2
 
 
 def test_return_after_unreachable_jump(tmp_path):
     """Label has return after jump — has_return still True, no finding."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call helper
             return
@@ -118,24 +138,29 @@ def test_return_after_unreachable_jump(tmp_path):
             return
         label somewhere:
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 0
 
 
 def test_call_screen_not_flagged(tmp_path):
     """'call screen X' is a screen call, not a label call — no finding."""
-    model = _project(tmp_path, """\
+    model = _project(
+        tmp_path,
+        """\
         label start:
             call screen preferences
             return
-    """)
+    """,
+    )
     findings = check(model)
     assert len(findings) == 0
 
 
 def test_empty_model(tmp_path):
     from renpy_analyzer.models import ProjectModel
+
     model = ProjectModel(root_dir=str(tmp_path))
     findings = check(model)
     assert findings == []

@@ -194,7 +194,9 @@ def extract_from_node(node, renpy, in_init=False):
             else:
                 full_name = varname
 
-            result.setdefault("variables", []).append({"name": full_name, "line": line, "kind": kind, "value": source, "in_init": in_init})
+            result.setdefault("variables", []).append(
+                {"name": full_name, "line": line, "kind": kind, "value": source, "in_init": in_init}
+            )
 
             # Check if it's a Character definition
             char_match = RE_CHARACTER.search(source)

@@ -40,9 +40,7 @@ def _group_findings(findings: list) -> dict[Severity, list[_GroupedFinding]]:
     for f in findings:
         key = (f.severity, f.check_name, f.title)
         if key not in key_map:
-            key_map[key] = _GroupedFinding(
-                severity=f.severity, check_name=f.check_name, title=f.title
-            )
+            key_map[key] = _GroupedFinding(severity=f.severity, check_name=f.check_name, title=f.title)
             order[key] = len(order)
         key_map[key].locations.append((f.file, f.line))
 
@@ -114,7 +112,7 @@ def analyze(
         findings = run_analysis(
             project_path,
             checks=checks,
-            on_progress=lambda msg, _frac: (click.echo(msg, err=True) if verbose else None),
+            on_progress=lambda msg, _frac: click.echo(msg, err=True) if verbose else None,
             sdk_path=sdk_path,
         )
     except ValueError as exc:
@@ -164,9 +162,7 @@ def _output_text(findings: list) -> None:
         if not glist:
             continue
         sev_count = sum(len(g.locations) for g in glist)
-        header = click.style(
-            f"-- {sev.name} ({sev_count}) ", fg=SEVERITY_COLORS[sev], bold=True
-        )
+        header = click.style(f"-- {sev.name} ({sev_count}) ", fg=SEVERITY_COLORS[sev], bold=True)
         click.echo()
         click.echo(header + "-" * max(0, 60 - len(f"-- {sev.name} ({sev_count}) ")))
 

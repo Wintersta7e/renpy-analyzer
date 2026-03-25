@@ -4,16 +4,18 @@ from __future__ import annotations
 
 from ..models import Finding, ProjectModel, Severity
 
-ENGINE_LABELS = frozenset({
-    "start",
-    "after_load",
-    "splashscreen",
-    "before_main_menu",
-    "main_menu",
-    "quit",
-    "after_warp",
-    "hide_windows",
-})
+ENGINE_LABELS = frozenset(
+    {
+        "start",
+        "after_load",
+        "splashscreen",
+        "before_main_menu",
+        "main_menu",
+        "quit",
+        "after_warp",
+        "hide_windows",
+    }
+)
 
 
 def check(project: ProjectModel) -> list[Finding]:
@@ -27,9 +29,7 @@ def check(project: ProjectModel) -> list[Finding]:
     # archives we can't inspect — downgrade from CRITICAL to MEDIUM.
     missing_severity = Severity.MEDIUM if project.has_rpa else Severity.CRITICAL
     rpa_note = (
-        " Note: this game uses .rpa archives — the target label may exist inside an archive."
-        if project.has_rpa
-        else ""
+        " Note: this game uses .rpa archives — the target label may exist inside an archive." if project.has_rpa else ""
     )
 
     for jump in project.jumps:

@@ -113,8 +113,7 @@ def check(project: ProjectModel) -> list[Finding]:
                     check_name="screens",
                     title=f"Unused screen '{name}'",
                     description=(
-                        f"Screen '{name}' defined at {d.file}:{d.line} "
-                        f"is never referenced with show/call/hide screen."
+                        f"Screen '{name}' defined at {d.file}:{d.line} is never referenced with show/call/hide screen."
                     ),
                     file=d.file,
                     line=d.line,

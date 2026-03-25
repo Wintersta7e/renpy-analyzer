@@ -17,17 +17,45 @@ from ..models import Finding, ProjectModel, Severity
 # ---------------------------------------------------------------------------
 
 # Known screen property keywords that take a value expression.
-_SCREEN_PROPERTIES = frozenset({
-    "action", "alternate", "value", "background", "foreground",
-    "hover_sound", "activate_sound", "sensitive", "selected",
-    "child", "hover", "idle", "insensitive",
-    "selected_hover", "selected_idle", "selected_insensitive",
-    "text_align", "text_style", "tooltip",
-    # Position / size properties that also accept expressions.
-    "xpos", "ypos", "xalign", "yalign", "xanchor", "yanchor",
-    "alpha", "rotate", "zoom",
-    "xsize", "ysize", "color", "style", "focus", "default",
-})
+_SCREEN_PROPERTIES = frozenset(
+    {
+        "action",
+        "alternate",
+        "value",
+        "background",
+        "foreground",
+        "hover_sound",
+        "activate_sound",
+        "sensitive",
+        "selected",
+        "child",
+        "hover",
+        "idle",
+        "insensitive",
+        "selected_hover",
+        "selected_idle",
+        "selected_insensitive",
+        "text_align",
+        "text_style",
+        "tooltip",
+        # Position / size properties that also accept expressions.
+        "xpos",
+        "ypos",
+        "xalign",
+        "yalign",
+        "xanchor",
+        "yanchor",
+        "alpha",
+        "rotate",
+        "zoom",
+        "xsize",
+        "ysize",
+        "color",
+        "style",
+        "focus",
+        "default",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Conflicting position properties
@@ -57,38 +85,86 @@ _RE_STRIP_SINGLE = re.compile(r"'(?:[^'\\]|\\.)*'")
 
 # ``padding`` and its directional variants are Window properties — not valid
 # on pure layout containers.
-_PADDING_PROPERTIES = frozenset({
-    "padding", "left_padding", "right_padding",
-    "top_padding", "bottom_padding",
-    "xpadding", "ypadding",
-})
+_PADDING_PROPERTIES = frozenset(
+    {
+        "padding",
+        "left_padding",
+        "right_padding",
+        "top_padding",
+        "bottom_padding",
+        "xpadding",
+        "ypadding",
+    }
+)
 
 # Layout containers that do NOT accept padding.
-_NO_PADDING_STATEMENTS = frozenset({
-    "vbox", "hbox", "grid", "fixed", "side", "vpgrid",
-})
+_NO_PADDING_STATEMENTS = frozenset(
+    {
+        "vbox",
+        "hbox",
+        "grid",
+        "fixed",
+        "side",
+        "vpgrid",
+    }
+)
 
 # ``action`` is only valid on interactive displayables.
-_NO_ACTION_STATEMENTS = frozenset({
-    "vbox", "hbox", "grid", "fixed", "side",
-    "frame", "window", "viewport", "vpgrid",
-    "text", "add", "image", "null",
-})
+_NO_ACTION_STATEMENTS = frozenset(
+    {
+        "vbox",
+        "hbox",
+        "grid",
+        "fixed",
+        "side",
+        "frame",
+        "window",
+        "viewport",
+        "vpgrid",
+        "text",
+        "add",
+        "image",
+        "null",
+    }
+)
 
 # Allowlist of known screen displayable statements.  Only these are pushed
 # onto ``stmt_stack`` for property validation.  Control-flow keywords
 # (if, for, else, etc.) are intentionally excluded — they are transparent
 # wrappers and should not affect property→parent attribution.
-_DISPLAYABLE_STATEMENTS = frozenset({
-    "vbox", "hbox", "grid", "fixed", "side",
-    "frame", "window", "viewport", "vpgrid",
-    "button", "textbutton", "imagebutton",
-    "text", "add", "image", "null",
-    "bar", "vbar", "hotspot", "hotbar",
-    "key", "timer", "mousearea",
-    "label", "input", "drag", "draggroup",
-    "imagemap", "transform",
-})
+_DISPLAYABLE_STATEMENTS = frozenset(
+    {
+        "vbox",
+        "hbox",
+        "grid",
+        "fixed",
+        "side",
+        "frame",
+        "window",
+        "viewport",
+        "vpgrid",
+        "button",
+        "textbutton",
+        "imagebutton",
+        "text",
+        "add",
+        "image",
+        "null",
+        "bar",
+        "vbar",
+        "hotspot",
+        "hotbar",
+        "key",
+        "timer",
+        "mousearea",
+        "label",
+        "input",
+        "drag",
+        "draggroup",
+        "imagemap",
+        "transform",
+    }
+)
 
 # Property assignment regex: ``  property_keyword <value>``
 RE_PROPERTY = re.compile(r"^(\s+)(\w+)\s+(.+)")
@@ -130,7 +206,7 @@ def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> Non
                 in_screen = True
                 stmt_stack.clear()
                 continue
-            elif in_screen:
+            if in_screen:
                 # Another top-level definition — screen ended.
                 in_screen = False
                 stmt_stack.clear()
@@ -197,10 +273,14 @@ def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> Non
             seen.append((prop_name, lineno))
 
         # --- Ternary if/else detection ---
-        if (prop_name in _SCREEN_PROPERTIES or prop_name.startswith(("selected_", "hover_", "idle_", "insensitive_"))) and re.search(r"\bif\b", prop_value) and re.search(r"\belse\b", prop_value):
+        if (
+            (prop_name in _SCREEN_PROPERTIES or prop_name.startswith(("selected_", "hover_", "idle_", "insensitive_")))
+            and re.search(r"\bif\b", prop_value)
+            and re.search(r"\belse\b", prop_value)
+        ):
             # Strip string literals (handles escaped quotes) before checking.
-            stripped = _RE_STRIP_DOUBLE.sub('', prop_value)
-            stripped = _RE_STRIP_SINGLE.sub('', stripped)
+            stripped = _RE_STRIP_DOUBLE.sub("", prop_value)
+            stripped = _RE_STRIP_SINGLE.sub("", stripped)
             if re.search(r"\bif\b", stripped) and re.search(r"\belse\b", stripped):
                 findings.append(
                     Finding(
@@ -265,9 +345,6 @@ def _check_file(rel_path: str, lines: list[str], findings: list[Finding]) -> Non
                     ),
                     file=rel_path,
                     line=lineno,
-                    suggestion=(
-                        "Wrap the content in a 'button:' block and set "
-                        "'action' on the button."
-                    ),
+                    suggestion=("Wrap the content in a 'button:' block and set 'action' on the button."),
                 )
             )
