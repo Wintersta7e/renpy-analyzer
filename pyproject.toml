@@ -52,16 +52,44 @@ select = [
     "B",     # flake8-bugbear (common bug patterns)
     "SIM",   # flake8-simplify
     "RUF",   # ruff-specific rules
+    "A",     # flake8-builtins (shadowing builtins)
+    "C4",    # flake8-comprehensions (unnecessary wrappers)
+    "DTZ",   # flake8-datetimez (naive datetime bugs)
+    "EM",    # flake8-errmsg (string literals in exceptions)
+    "FBT",   # flake8-boolean-trap (positional bool args)
+    "ICN",   # flake8-import-conventions
+    "ISC",   # flake8-implicit-str-concat
+    "N",     # pep8-naming
+    "PIE",   # misc lints (unnecessary pass, etc.)
+    "PT",    # flake8-pytest-style
+    "RET",   # flake8-return (unnecessary else after return)
+    "S",     # flake8-bandit (security)
+    "T20",   # flake8-print (stray prints)
+    "TCH",   # flake8-type-checking (TYPE_CHECKING imports)
+    "TRY",   # tryceratops (exception anti-patterns)
+    "PERF",  # perflint (performance)
+    "FURB",  # refurb (modern idioms)
+    "LOG",   # logging anti-patterns
 ]
 ignore = [
-    "E501",  # line too long — let formatter handle wrapping where it can
+    "E501",   # line too long — let formatter handle wrapping where it can
     "SIM108", # ternary operator — not always clearer
+    "TRY003", # long messages in raise — we use descriptive error messages
+    "EM101",  # string literal in exception — too noisy for this codebase
+    "EM102",  # f-string in exception — too noisy for this codebase
+    "ISC001", # implicit string concat — conflicts with ruff formatter
+    "FBT001", # boolean positional arg in function def — too pervasive to fix
+    "FBT002", # boolean default in function def — too pervasive to fix
+    "S101",   # assert — used legitimately in tests
+    "PERF401", # manual list.append in loops — extend/comprehension hurts readability for multi-line objects
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # bridge_worker.py must run under Python 2.7 (SDK 7.x) — needs coding decl,
 # __future__ imports, io.open(), and %-formatting that ruff flags as unnecessary.
-"src/renpy_analyzer/bridge_worker.py" = ["UP009", "UP010", "UP020", "UP031"]
+"src/renpy_analyzer/bridge_worker.py" = ["UP009", "UP010", "UP020", "UP031", "T20"]
+"src/renpy_analyzer/app.py" = ["FBT003"]  # tkinter API calls like grid_propagate(False)
+"tests/**" = ["S", "FBT", "T20", "TCH"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["renpy_analyzer"]
@@ -78,8 +106,11 @@ indent-style = "space"
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false          # gradual — don't require annotations everywhere yet
-check_untyped_defs = true              # but DO check bodies of untyped functions
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unreachable = true
+strict_equality = true
+no_implicit_optional = true
 ignore_missing_imports = true          # third-party libs without stubs (reportlab, customtkinter)
 exclude = [
     "bridge_worker\\.py$",             # runs under SDK Python, imports renpy.*
