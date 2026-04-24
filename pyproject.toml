@@ -9,16 +9,16 @@ description = "Desktop GUI tool to scan Ren'Py visual novel projects for bugs an
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-    "customtkinter>=5.2",
-    "reportlab>=4.0",
+    "customtkinter>=5.2.2",
+    "reportlab>=4.4.10",
     "Pillow>=10.0",
-    "click>=8.0",
+    "click>=8.3.2",
     "platformdirs>=4.9.6",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
+    "pytest>=9.0.3",
     "pytest-cov",
     "ruff",
     "mypy",
