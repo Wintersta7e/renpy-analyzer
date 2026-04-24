@@ -13,7 +13,7 @@ dependencies = [
     "reportlab>=4.0",
     "Pillow>=10.0",
     "click>=8.0",
-    "platformdirs>=3.0",
+    "platformdirs>=4.9.6",
 ]
 
 [project.optional-dependencies]
