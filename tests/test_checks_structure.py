@@ -27,6 +27,39 @@ def test_missing_label_start(tmp_path):
     assert critical[0].severity.name == "CRITICAL"
 
 
+def test_missing_label_start_downgraded_when_rpa_present(tmp_path):
+    """When scripts may live in .rpa archives, missing-label-start is MEDIUM, not CRITICAL."""
+    model = _project(
+        tmp_path,
+        """\
+        label intro:
+            "Hello"
+    """,
+    )
+    model.has_rpa = True
+    findings = check(model)
+    start_findings = [f for f in findings if "label start" in f.title.lower()]
+    assert len(start_findings) == 1
+    assert start_findings[0].severity.name == "MEDIUM"
+    assert ".rpa" in start_findings[0].description
+
+
+def test_missing_label_start_downgraded_when_rpyc_only(tmp_path):
+    """When only .rpyc files exist, missing-label-start is MEDIUM — label may be inside compiled scripts."""
+    model = _project(
+        tmp_path,
+        """\
+        label intro:
+            "Hello"
+    """,
+    )
+    model.has_rpyc_only = True
+    findings = check(model)
+    start_findings = [f for f in findings if "label start" in f.title.lower()]
+    assert len(start_findings) == 1
+    assert start_findings[0].severity.name == "MEDIUM"
+
+
 def test_label_start_present(tmp_path):
     model = _project(
         tmp_path,
