@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,6 +36,17 @@ from renpy_analyzer.sdk_bridge import (
 # ---------------------------------------------------------------------------
 
 
+def _make_sdk(path: Path, version: str = "8.5.2") -> Path:
+    (path / "renpy").mkdir(parents=True)
+    (path / "renpy" / "vc_version.py").write_text(f"version = '{version}.1234'\n")
+    py_dir = path / "lib" / "py3-linux-x86_64"
+    py_dir.mkdir(parents=True)
+    py_bin = py_dir / "python"
+    py_bin.write_text("#!/bin/sh\n")
+    py_bin.chmod(0o755)
+    return path
+
+
 def test_validate_sdk_path_missing_dir(tmp_path):
     assert validate_sdk_path(str(tmp_path / "nonexistent")) is False
 
@@ -59,6 +71,36 @@ def test_validate_sdk_path_no_version(tmp_path):
     """SDK with renpy/ dir but no detectable version is invalid."""
     (tmp_path / "renpy").mkdir()
     assert validate_sdk_path(str(tmp_path)) is False
+
+
+def test_validate_sdk_path_rejects_symlinked_sdk_root(tmp_path):
+    real_sdk = _make_sdk(tmp_path / "real-sdk")
+    sdk_link = tmp_path / "sdk-link"
+
+    try:
+        sdk_link.symlink_to(real_sdk, target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlinks are unavailable on this platform")
+
+    assert validate_sdk_path(str(sdk_link)) is False
+
+
+def test_validate_sdk_path_rejects_symlinked_lib_dir(tmp_path):
+    sdk = tmp_path / "sdk"
+    (sdk / "renpy").mkdir(parents=True)
+    (sdk / "renpy" / "vc_version.py").write_text("version = '8.5.2.1234'\n")
+    real_lib = tmp_path / "real-lib" / "py3-linux-x86_64"
+    real_lib.mkdir(parents=True)
+    python_bin = real_lib / "python"
+    python_bin.write_text("#!/bin/sh\n")
+    python_bin.chmod(0o755)
+
+    try:
+        (sdk / "lib").symlink_to(tmp_path / "real-lib", target_is_directory=True)
+    except OSError:
+        pytest.skip("Symlinks are unavailable on this platform")
+
+    assert validate_sdk_path(str(sdk)) is False
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +170,24 @@ def test_find_sdk_python_prefers_py3(tmp_path):
 def test_find_sdk_python_not_found(tmp_path):
     with pytest.raises(RuntimeError, match="Could not find SDK Python"):
         find_sdk_python(str(tmp_path))
+
+
+def test_find_sdk_python_rejects_symlink_binary(tmp_path):
+    (tmp_path / "renpy").mkdir()
+    py_dir = tmp_path / "lib" / "py3-linux-x86_64"
+    py_dir.mkdir(parents=True)
+    real_bin = tmp_path / "python-real"
+    real_bin.write_text("#!/bin/sh\n")
+
+    try:
+        (py_dir / "python").symlink_to(real_bin)
+    except OSError:
+        pytest.skip("Symlinks are unavailable on this platform")
+
+    with patch("renpy_analyzer.sdk_bridge.platform") as mock_platform:
+        mock_platform.system.return_value = "Linux"
+        with pytest.raises(RuntimeError, match="Could not find SDK Python"):
+            find_sdk_python(str(tmp_path))
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +416,11 @@ def test_convert_full_file():
 # ---------------------------------------------------------------------------
 
 
+def test_parse_files_rejects_untrusted_sdk():
+    with pytest.raises(RuntimeError, match="Only enable it for SDKs you trust"):
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+
+
 def _make_response(results=None, errors=None, success=True, version="8.5.2"):
     return json.dumps(
         {
@@ -397,9 +462,36 @@ def test_parse_files_success(mock_run, mock_find_py, mock_find_worker):
         stderr="",
     )
 
-    result = parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+    result = parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
     assert "/game/script.rpy" in result
     assert result["/game/script.rpy"]["labels"][0]["name"] == "start"
+
+
+@patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
+@patch("renpy_analyzer.sdk_bridge.find_sdk_python")
+@patch("renpy_analyzer.sdk_bridge.subprocess.run")
+def test_parse_files_success_invokes_worker_with_expected_request(mock_run, mock_find_py, mock_find_worker):
+    mock_find_py.return_value = "/sdk/lib/py3-linux/python"
+    mock_find_worker.return_value = "/path/to/bridge_worker.py"
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout=_make_response(results={"/game/script.rpy": {}}),
+        stderr="",
+    )
+
+    parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", timeout=45, trust_sdk=True)
+
+    assert mock_run.call_args is not None
+    assert mock_run.call_args.args[0] == ["/sdk/lib/py3-linux/python", "/path/to/bridge_worker.py"]
+    assert json.loads(mock_run.call_args.kwargs["input"]) == {
+        "sdk_path": "/sdk",
+        "game_dir": "/game",
+        "files": ["/game/script.rpy"],
+    }
+    assert mock_run.call_args.kwargs["timeout"] == 45
+    assert mock_run.call_args.kwargs["capture_output"] is True
+    assert mock_run.call_args.kwargs["text"] is True
+    assert mock_run.call_args.kwargs["creationflags"] == 0
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -413,7 +505,7 @@ def test_parse_files_timeout(mock_run, mock_find_py, mock_find_worker):
     mock_run.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=120)
 
     with pytest.raises(RuntimeError, match="timed out"):
-        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -429,7 +521,7 @@ def test_parse_files_nonzero_exit(mock_run, mock_find_py, mock_find_worker):
     )
 
     with pytest.raises(RuntimeError, match="exited with code 1"):
-        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -445,7 +537,7 @@ def test_parse_files_invalid_json(mock_run, mock_find_py, mock_find_worker):
     )
 
     with pytest.raises(RuntimeError, match="Invalid JSON"):
-        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -461,7 +553,7 @@ def test_parse_files_sdk_failure(mock_run, mock_find_py, mock_find_worker):
     )
 
     with pytest.raises(RuntimeError, match="SDK parser failed"):
-        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
 
 
 @patch("renpy_analyzer.sdk_bridge._find_bridge_worker")
@@ -473,7 +565,7 @@ def test_parse_files_os_error(mock_run, mock_find_py, mock_find_worker):
     mock_run.side_effect = OSError("No such file")
 
     with pytest.raises(RuntimeError, match="Failed to launch"):
-        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk")
+        parse_files_with_sdk(["/game/script.rpy"], "/game", "/sdk", trust_sdk=True)
 
 
 # ---------------------------------------------------------------------------

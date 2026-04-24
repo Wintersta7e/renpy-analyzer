@@ -22,6 +22,8 @@ def run_analysis(
     on_progress: Callable[[str, float], None] | None = None,
     cancel_check: Callable[[], bool] | None = None,
     sdk_path: str | None = None,
+    *,
+    trust_sdk: bool = False,
 ) -> list[Finding]:
     """Run analysis on a Ren'Py project and return sorted findings.
 
@@ -40,6 +42,8 @@ def run_analysis(
         Optional callable returning *True* when the caller wants to abort.
     sdk_path:
         Optional path to a Ren'Py SDK directory.
+    trust_sdk:
+        Explicit opt-in required before executing the SDK parser.
 
     Returns
     -------
@@ -75,6 +79,7 @@ def run_analysis(
             _progress,
             _cancelled,
             sdk_path,
+            trust_sdk,
         )
     else:
         findings = _run_single_analysis(
@@ -83,6 +88,7 @@ def run_analysis(
             _progress,
             _cancelled,
             sdk_path,
+            trust_sdk,
         )
 
     findings.sort(key=lambda f: f.severity)
@@ -97,12 +103,13 @@ def _run_single_analysis(
     _progress: Callable[[str, float], None],
     _cancelled: Callable[[], bool],
     sdk_path: str | None,
+    trust_sdk: bool,
     file_prefix: str = "",
 ) -> list[Finding]:
     """Analyze a single game project."""
     parser_label = "SDK" if sdk_path else "regex"
     _progress(f"Parsing {file_prefix or 'project'} files ({parser_label} parser)...", 0.0)
-    project = load_project(project_path, sdk_path=sdk_path)
+    project = load_project(project_path, sdk_path=sdk_path, trust_sdk=trust_sdk)
     _progress(f"Parsed {len(project.files)} .rpy files.", 0.1)
 
     total = len(checks)
@@ -154,6 +161,7 @@ def _run_multi_game_analysis(
     _progress: Callable[[str, float], None],
     _cancelled: Callable[[], bool],
     sdk_path: str | None,
+    trust_sdk: bool,
 ) -> list[Finding]:
     """Analyze each sub-game independently and combine findings."""
     root = Path(project_path)
@@ -182,6 +190,7 @@ def _run_multi_game_analysis(
             _sub_progress,
             _cancelled,
             sdk_path,
+            trust_sdk,
             file_prefix=sub_name,
         )
         all_findings.extend(sub_findings)

@@ -72,10 +72,21 @@ def _group_findings(findings: list) -> dict[Severity, list[_GroupedFinding]]:
     "sdk_paths",
     multiple=True,
     type=click.Path(exists=True),
-    help="Path to a Ren'Py SDK directory (repeatable for multiple versions).",
+    help="Path to a Ren'Py SDK directory (repeatable for multiple versions, requires --trust-sdk to execute).",
+)
+@click.option(
+    "--trust-sdk",
+    is_flag=True,
+    help="Allow executing the selected SDK's bundled Python. Use only with SDKs you trust.",
 )
 def analyze(
-    project_path: str, check_names: str | None, output: str | None, verbose: bool, fmt: str, sdk_paths: tuple[str, ...]
+    project_path: str,
+    check_names: str | None,
+    output: str | None,
+    verbose: bool,
+    fmt: str,
+    sdk_paths: tuple[str, ...],
+    trust_sdk: bool,
 ) -> None:
     """Analyze a Ren'Py project for bugs and issues."""
     setup_logging(verbose=verbose)
@@ -87,7 +98,7 @@ def analyze(
     # Auto-select the best SDK for this game's Ren'Py version
     sdk_path: str | None = None
     if sdk_paths:
-        from .sdk_bridge import detect_sdk_version
+        from .sdk_bridge import detect_sdk_version, validate_sdk_path
         from .version import detect_renpy_version, format_version, select_sdk
 
         game_ver = detect_renpy_version(project_path)
@@ -108,12 +119,28 @@ def analyze(
             if sdk_path:
                 click.echo(f"Could not detect game version — using SDK at {sdk_path}", err=True)
 
+        if sdk_path and not trust_sdk:
+            click.echo(
+                "Error: SDK parsing executes the SDK's bundled Python. "
+                "Re-run with --trust-sdk only for SDKs you trust, or omit --sdk-path to use the regex parser.",
+                err=True,
+            )
+            sys.exit(2)
+
+        if sdk_path and not validate_sdk_path(sdk_path):
+            click.echo(
+                f"Error: Invalid SDK path '{sdk_path}'. Select a real Ren'Py SDK folder with a non-symlink bundled Python.",
+                err=True,
+            )
+            sys.exit(2)
+
     try:
         findings = run_analysis(
             project_path,
             checks=checks,
             on_progress=lambda msg, _frac: click.echo(msg, err=True) if verbose else None,
             sdk_path=sdk_path,
+            trust_sdk=trust_sdk,
         )
     except ValueError as exc:
         click.echo(f"Error: {exc}", err=True)

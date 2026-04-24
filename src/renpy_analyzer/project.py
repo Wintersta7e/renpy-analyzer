@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import os
+import stat
 from pathlib import Path
 
 from .models import ProjectModel
@@ -20,17 +22,93 @@ _MODEL_KEYS = [
 ]
 
 
-def _is_engine_file(path: Path) -> bool:
-    """Return True if the file is a Ren'Py engine file (not user code).
+def _is_within_root(path: Path, root: Path) -> bool:
+    """Return True when ``path`` resolves under ``root``."""
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
-    Engine files live under a 'renpy/' directory that ships with every
-    Ren'Py game.  These contain engine internals (common screens, default
-    persistent vars, ATL, etc.) that the game developer did not write and
-    cannot control.  Scanning them produces false positives across all
-    checks.
-    """
-    parts = path.parts
-    return "renpy" in parts
+
+def _should_descend_into_dir(directory: Path, root_real: Path) -> bool:
+    """Return True when a directory is safe to walk."""
+    if directory.name == "renpy":
+        return False
+
+    try:
+        st = directory.lstat()
+    except OSError:
+        logger.warning("Skipping unreadable directory %s", directory, exc_info=True)
+        return False
+
+    if stat.S_ISLNK(st.st_mode):
+        logger.warning("Skipping symlinked directory %s", directory)
+        return False
+    if not stat.S_ISDIR(st.st_mode):
+        logger.warning("Skipping non-directory path during walk %s", directory)
+        return False
+
+    try:
+        resolved = directory.resolve(strict=True)
+    except OSError:
+        logger.warning("Skipping unresolved directory %s", directory, exc_info=True)
+        return False
+
+    if not _is_within_root(resolved, root_real):
+        logger.warning("Skipping out-of-root directory %s -> %s", directory, resolved)
+        return False
+
+    return True
+
+
+def _validate_source_file(candidate: Path, root_real: Path, *, label: str) -> Path | None:
+    """Return a safe file path or *None* when the candidate is unsafe."""
+    try:
+        st = candidate.lstat()
+    except OSError:
+        logger.warning("Skipping unreadable %s %s", label, candidate, exc_info=True)
+        return None
+
+    if stat.S_ISLNK(st.st_mode):
+        logger.warning("Skipping symlinked %s %s", label, candidate)
+        return None
+    if not stat.S_ISREG(st.st_mode):
+        logger.warning("Skipping non-regular %s %s", label, candidate)
+        return None
+
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError:
+        logger.warning("Skipping unresolved %s %s", label, candidate, exc_info=True)
+        return None
+
+    if not _is_within_root(resolved, root_real):
+        logger.warning("Skipping out-of-root %s %s -> %s", label, candidate, resolved)
+        return None
+
+    return candidate
+
+
+def _discover_project_files(scan_dir: Path, *, suffix: str, label: str) -> list[Path]:
+    """Discover safe project files under ``scan_dir``."""
+    root_real = scan_dir.resolve()
+    discovered: list[Path] = []
+
+    for dirpath, dirnames, filenames in os.walk(scan_dir, topdown=True, followlinks=False):
+        current_dir = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames if _should_descend_into_dir(current_dir / d, root_real))
+
+        for filename in sorted(filenames):
+            if not filename.endswith(suffix):
+                continue
+
+            candidate = current_dir / filename
+            validated = _validate_source_file(candidate, root_real, label=label)
+            if validated is not None:
+                discovered.append(validated)
+
+    return discovered
 
 
 def detect_sub_games(path: str) -> list[str]:
@@ -51,7 +129,7 @@ def detect_sub_games(path: str) -> list[str]:
     return sub_games if len(sub_games) > 1 else []
 
 
-def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
+def load_project(path: str, sdk_path: str | None = None, *, trust_sdk: bool = False) -> ProjectModel:
     """Load a Ren'Py project from a directory path.
 
     If path points to a directory containing a 'game/' subfolder,
@@ -67,6 +145,8 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     sdk_path:
         Optional path to a Ren'Py SDK directory. When provided, uses
         the SDK's parser via subprocess instead of the regex parser.
+    trust_sdk:
+        Explicit opt-in required before executing the SDK parser.
     """
     root = Path(path)
     game_dir = root / "game"
@@ -75,18 +155,18 @@ def load_project(path: str, sdk_path: str | None = None) -> ProjectModel:
     else:
         scan_dir = root
 
-    rpy_files = sorted(f for f in scan_dir.rglob("*.rpy") if not _is_engine_file(f))
+    rpy_files = _discover_project_files(scan_dir, suffix=".rpy", label="script file")
     model = ProjectModel(root_dir=str(scan_dir))
     model.files = [str(f) for f in rpy_files]
     model.has_rpa = any(scan_dir.glob("*.rpa"))
 
     if sdk_path:
-        _load_with_sdk(model, rpy_files, scan_dir, sdk_path)
+        _load_with_sdk(model, rpy_files, scan_dir, sdk_path, trust_sdk=trust_sdk)
     else:
         _load_with_regex(model, rpy_files, scan_dir)
 
     if not rpy_files:
-        rpyc_files = list(scan_dir.rglob("*.rpyc"))
+        rpyc_files = _discover_project_files(scan_dir, suffix=".rpyc", label="compiled script file")
         if rpyc_files:
             model.has_rpyc_only = True
 
@@ -109,12 +189,19 @@ def _load_with_regex(model: ProjectModel, rpy_files: list[Path], scan_dir: Path)
         _merge_result(model, result, rpy_file, scan_dir)
 
 
-def _load_with_sdk(model: ProjectModel, rpy_files: list[Path], scan_dir: Path, sdk_path: str) -> None:
+def _load_with_sdk(
+    model: ProjectModel,
+    rpy_files: list[Path],
+    scan_dir: Path,
+    sdk_path: str,
+    *,
+    trust_sdk: bool,
+) -> None:
     """Parse files using the Ren'Py SDK's parser via subprocess bridge."""
     from .sdk_bridge import convert_file_result, parse_files_with_sdk
 
     file_paths = [str(f) for f in rpy_files]
-    raw_results = parse_files_with_sdk(file_paths, str(scan_dir), sdk_path)
+    raw_results = parse_files_with_sdk(file_paths, str(scan_dir), sdk_path, trust_sdk=trust_sdk)
 
     sdk_skipped = 0
     for rpy_file in rpy_files:

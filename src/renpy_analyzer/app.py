@@ -8,7 +8,7 @@ import threading
 import tkinter as tk
 from collections import Counter
 from pathlib import Path
-from tkinter import BooleanVar, StringVar, filedialog, ttk
+from tkinter import BooleanVar, StringVar, filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
@@ -153,6 +153,9 @@ class RenpyAnalyzerApp(ctk.CTk):
         """Load SDK entries from settings, detecting versions at runtime."""
         self._sdk_entries = []
         for path in self._settings.sdk_paths:
+            if not validate_sdk_path(path):
+                logger.warning("Ignoring invalid SDK path from settings: %s", path)
+                continue
             ver = detect_sdk_version(path) or "?"
             self._sdk_entries.append((path, ver))
 
@@ -177,7 +180,7 @@ class RenpyAnalyzerApp(ctk.CTk):
             self._sdk_note_label.configure(text_color=TEXT_DIM)
             return
         if not validate_sdk_path(folder):
-            self._sdk_note.set("Invalid SDK path — missing renpy/ or Python binary.")
+            self._sdk_note.set("Invalid SDK path — select a real SDK folder with a local bundled Python.")
             self._sdk_note_label.configure(text_color="#DC3545")
             return
         ver = detect_sdk_version(folder) or "?"
@@ -247,14 +250,33 @@ class RenpyAnalyzerApp(ctk.CTk):
             # User explicitly selected an SDK
             for path, ver in self._sdk_entries:
                 if f"{ver} — {path}" == selected:
-                    return path
+                    return path if validate_sdk_path(path) else None
 
         # Auto-select: match game version to SDK major version
         if not self._sdk_entries:
             return None
         game_ver = detect_renpy_version(game_path)
         sdk_paths = [p for p, _ in self._sdk_entries]
-        return select_sdk(game_ver, sdk_paths)
+        matched = select_sdk(game_ver, sdk_paths)
+        if matched and not validate_sdk_path(matched):
+            logger.warning("Skipping invalid SDK path during analysis: %s", matched)
+            return None
+        return matched
+
+    def _confirm_sdk_trust(self, sdk_path: str) -> bool:
+        """Ask the user to opt in before executing an SDK parser."""
+        return bool(
+            messagebox.askyesno(
+                title="Trust SDK Parser?",
+                message=(
+                    "SDK parsing executes the selected SDK's bundled Python interpreter.\n\n"
+                    f"Only continue if you trust this SDK:\n{sdk_path}\n\n"
+                    "Choose Yes to use the SDK parser, or No to continue with the safer regex parser."
+                ),
+                icon="warning",
+                parent=self,
+            )
+        )
 
     # -----------------------------------------------------------------------
     # UI construction
@@ -688,6 +710,9 @@ class RenpyAnalyzerApp(ctk.CTk):
 
         # Resolve SDK before starting the thread
         self._resolved_sdk_path = self._resolve_sdk_for_analysis(project_path)
+        if self._resolved_sdk_path and not self._confirm_sdk_trust(self._resolved_sdk_path):
+            self._resolved_sdk_path = None
+            self._status_var.set("SDK parser skipped — using regex parser.")
 
         self._analyze_btn.configure(state="disabled")
         self._export_btn.configure(state="disabled")
@@ -722,6 +747,7 @@ class RenpyAnalyzerApp(ctk.CTk):
                 on_progress=lambda msg, frac: self.after(0, self._update_progress, msg, frac),
                 cancel_check=self._cancel_event.is_set,
                 sdk_path=sdk_path,
+                trust_sdk=bool(sdk_path),
             )
             if self._cancel_event.is_set():
                 self.after(0, self._analysis_cancelled)

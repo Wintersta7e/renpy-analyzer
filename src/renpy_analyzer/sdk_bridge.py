@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import platform
+import stat
 import subprocess
 import sys
 from glob import glob
@@ -36,6 +37,65 @@ logger = logging.getLogger("renpy_analyzer.sdk_bridge")
 
 # Timeout for the subprocess (seconds)
 _SUBPROCESS_TIMEOUT = 120
+_SDK_TRUST_ERROR = (
+    "SDK parsing executes the selected SDK's bundled Python interpreter. Only enable it for SDKs you trust."
+)
+
+
+def require_trusted_sdk(sdk_path: str, trust_sdk: bool) -> None:
+    """Reject SDK execution unless the caller opted in explicitly."""
+    if trust_sdk:
+        return
+    raise RuntimeError(f"{_SDK_TRUST_ERROR} Refusing to execute SDK at {sdk_path!r}.")
+
+
+def _is_within_root(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _path_has_symlink_component(path: Path, root: Path) -> bool:
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return True
+
+    current = root
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
+def _safe_sdk_dir(directory: Path) -> bool:
+    try:
+        st = directory.lstat()
+    except OSError:
+        return False
+    return stat.S_ISDIR(st.st_mode) and not stat.S_ISLNK(st.st_mode)
+
+
+def _safe_sdk_file(candidate: Path, sdk_root: Path, sdk_root_real: Path) -> bool:
+    try:
+        st = candidate.lstat()
+    except OSError:
+        return False
+
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode):
+        return False
+    if _path_has_symlink_component(candidate, sdk_root):
+        return False
+
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError:
+        return False
+
+    return _is_within_root(resolved, sdk_root_real / "lib")
 
 
 def find_sdk_python(sdk_path: str) -> str:
@@ -44,6 +104,18 @@ def find_sdk_python(sdk_path: str) -> str:
     Raises RuntimeError if not found.
     """
     sdk = Path(sdk_path)
+    if not _safe_sdk_dir(sdk):
+        raise RuntimeError(f"SDK path must be a real directory, not a symlink or special file: {sdk_path}")
+
+    try:
+        sdk_real = sdk.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError(f"Could not resolve SDK path {sdk_path}: {exc}") from exc
+
+    lib_dir = sdk / "lib"
+    if lib_dir.exists() and not _safe_sdk_dir(lib_dir):
+        raise RuntimeError(f"SDK lib directory must be a real directory, not a symlink: {lib_dir}")
+
     system = platform.system().lower()
 
     # Platform-specific search order (try py3 first, then py2 for older SDKs)
@@ -61,15 +133,15 @@ def find_sdk_python(sdk_path: str) -> str:
     # Fallback: glob for any py3-* or py2-* directory
     for match in sorted(glob(str(sdk / "lib" / "py3-*" / "python*"))):
         p = Path(match)
-        if p.is_file():
+        if _safe_sdk_file(p, sdk, sdk_real):
             candidates.append(p)
     for match in sorted(glob(str(sdk / "lib" / "py2-*" / "python*"))):
         p = Path(match)
-        if p.is_file():
+        if _safe_sdk_file(p, sdk, sdk_real):
             candidates.append(p)
 
     for candidate in candidates:
-        if candidate.is_file():
+        if _safe_sdk_file(candidate, sdk, sdk_real):
             logger.debug("Found SDK Python: %s", candidate)
             return str(candidate)
 
@@ -79,14 +151,23 @@ def find_sdk_python(sdk_path: str) -> str:
 def validate_sdk_path(sdk_path: str) -> bool:
     """Quick validation: SDK directory has renpy/ and version is detectable."""
     sdk = Path(sdk_path)
-    if not sdk.is_dir():
+    if not _safe_sdk_dir(sdk):
         return False
-    if not (sdk / "renpy").is_dir():
+    if not _safe_sdk_dir(sdk / "renpy"):
+        return False
+    if not _safe_sdk_dir(sdk / "lib"):
         return False
     # Must be able to detect the version
     from .version import detect_renpy_version
 
-    return detect_renpy_version(sdk_path) is not None
+    if detect_renpy_version(sdk_path) is None:
+        return False
+
+    try:
+        find_sdk_python(sdk_path)
+    except RuntimeError:
+        return False
+    return True
 
 
 def detect_sdk_version(sdk_path: str) -> str | None:
@@ -129,6 +210,8 @@ def parse_files_with_sdk(
     game_dir: str,
     sdk_path: str,
     timeout: int = _SUBPROCESS_TIMEOUT,
+    *,
+    trust_sdk: bool = False,
 ) -> dict[str, dict]:
     """Parse .rpy files using the SDK's parser via subprocess.
 
@@ -137,6 +220,7 @@ def parse_files_with_sdk(
 
     Raises RuntimeError on subprocess or protocol errors.
     """
+    require_trusted_sdk(sdk_path, trust_sdk)
     python_bin = find_sdk_python(sdk_path)
     worker_script = _find_bridge_worker()
 

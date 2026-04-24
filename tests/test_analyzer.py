@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import textwrap
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -100,6 +102,42 @@ def test_run_analysis_empty_checks_list(tmp_path):
     path = _make_project(tmp_path, "label start:\n    return\n")
     findings = run_analysis(path, checks=[])
     assert findings == []
+
+
+def test_run_analysis_rejects_untrusted_sdk(tmp_path):
+    path = _make_project(tmp_path, "label start:\n    return\n")
+    with pytest.raises(RuntimeError, match="Only enable it for SDKs you trust"):
+        run_analysis(path, sdk_path="/untrusted/sdk")
+
+
+def test_run_analysis_passes_trust_sdk_to_project_loader(tmp_path):
+    path = _make_project(tmp_path, "label start:\n    return\n")
+    fake_project = SimpleNamespace(files=[], has_rpyc_only=False)
+
+    with patch("renpy_analyzer.analyzer.load_project", return_value=fake_project) as mock_load_project:
+        findings = run_analysis(path, checks=[], sdk_path="/trusted/sdk", trust_sdk=True)
+
+    assert findings == []
+    assert mock_load_project.call_args is not None
+    assert mock_load_project.call_args.kwargs["sdk_path"] == "/trusted/sdk"
+    assert mock_load_project.call_args.kwargs["trust_sdk"] is True
+
+
+def test_run_analysis_multi_game_passes_trust_sdk_to_each_project(tmp_path):
+    for season in ("Season1", "Season2"):
+        (tmp_path / season / "game").mkdir(parents=True)
+
+    fake_project = SimpleNamespace(files=[], has_rpyc_only=False)
+
+    with patch("renpy_analyzer.analyzer.load_project", return_value=fake_project) as mock_load_project:
+        findings = run_analysis(str(tmp_path), checks=[], sdk_path="/trusted/sdk", trust_sdk=True)
+
+    assert findings == []
+    assert [call.kwargs["trust_sdk"] for call in mock_load_project.call_args_list] == [True, True]
+    assert [call.args[0] for call in mock_load_project.call_args_list] == [
+        str(tmp_path / "Season1"),
+        str(tmp_path / "Season2"),
+    ]
 
 
 def test_run_analysis_findings_sorted(tmp_path):
