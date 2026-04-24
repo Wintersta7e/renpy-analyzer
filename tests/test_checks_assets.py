@@ -118,6 +118,83 @@ def test_audio_file_exists_no_finding(tmp_path):
     assert len(audio) == 0
 
 
+def test_audio_from_prefix_stripped(tmp_path):
+    """`<from N>` modifier must be stripped before filesystem lookup."""
+    game = tmp_path / "game"
+    game.mkdir()
+    music = game / "audio" / "music"
+    music.mkdir(parents=True)
+    (music / "TheOne.opus").write_bytes(b"fake audio")
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            play music "<from 8>audio/music/TheOne.opus"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if f.title.startswith("Missing audio")]
+    assert missing == [], f"Expected no missing-audio finding; got {[f.description for f in missing]}"
+
+
+def test_audio_combined_prefix_stripped(tmp_path):
+    """Combined `<from N to M>` modifier must be stripped before filesystem lookup."""
+    game = tmp_path / "game"
+    game.mkdir()
+    music = game / "audio"
+    music.mkdir()
+    (music / "bgm.ogg").write_bytes(b"fake audio")
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            play music "<from 5.0 to 10.0>audio/bgm.ogg"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if f.title.startswith("Missing audio")]
+    assert missing == []
+
+
+def test_audio_silence_only_no_finding(tmp_path):
+    """A `<silence N>` pseudo-path has no filename and must not trigger a missing-file check."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            play sound "<silence 3.0>"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if f.title.startswith("Missing audio")]
+    assert missing == []
+
+
+def test_audio_prefix_stripped_still_flags_missing_file(tmp_path):
+    """After stripping `<from N>`, a genuinely missing file is still flagged."""
+    game = tmp_path / "game"
+    game.mkdir()
+    (game / "script.rpy").write_text(
+        textwrap.dedent("""\
+        label start:
+            play music "<from 8>audio/music/ghost.opus"
+    """),
+        encoding="utf-8",
+    )
+    model = load_project(str(tmp_path))
+    findings = check(model)
+    missing = [f for f in findings if f.title.startswith("Missing audio")]
+    assert len(missing) == 1
+    # The reported path should be the stripped version, not include the prefix.
+    assert "<from" not in missing[0].description
+    assert "audio/music/ghost.opus" in missing[0].description
+
+
 def test_scene_white_not_builtin(tmp_path):
     """'scene white' should be flagged — white is NOT a Ren'Py builtin image."""
     model = _project_with_images(

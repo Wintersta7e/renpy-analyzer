@@ -85,7 +85,10 @@ def check(project: ProjectModel) -> list[Finding]:
     for ref in project.music:
         if ref.action == "stop" or not ref.path:
             continue
-        rel_path = ref.path.lstrip("/")
+        stripped = _strip_audio_modifiers(ref.path)
+        if not stripped:
+            continue  # e.g. "<silence 3.0>" has no filename to look up
+        rel_path = stripped.lstrip("/")
         _check_file_reference(root, rel_path, "Audio", ref.file, ref.line, findings)
 
     # Check MP3 used for looping music
@@ -119,6 +122,20 @@ RESERVED_IMAGE_KEYWORDS = frozenset(
 )
 
 RE_SCENE_EXPR = re.compile(r"""^\s+scene\s+expression\s+["']([^"']+)["']""")
+
+# Leading audio modifier syntax: <from N>, <to N>, <loop N>, <fadeout N>,
+# <fadein N>, <silence N>, <sync tag> — may be combined inside one pair of
+# angle brackets. See Ren'Py docs on audio file specifiers.
+_RE_AUDIO_MODIFIER_PREFIX = re.compile(r"^<[^>]*>")
+
+
+def _strip_audio_modifiers(path: str) -> str:
+    """Strip a leading `<...>` audio-modifier block from an audio path.
+
+    `<silence N>` with no trailing filename yields the empty string, which
+    callers should treat as "no file to look up."
+    """
+    return _RE_AUDIO_MODIFIER_PREFIX.sub("", path, count=1)
 
 
 def _check_mp3_music(project: ProjectModel, findings: list[Finding]) -> None:
