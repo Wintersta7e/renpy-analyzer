@@ -35,3 +35,30 @@ jobs:
             "dist/RenpyAnalyzer.exe" `
             --title "Ren'Py Analyzer v${version}" `
             --generate-notes
+
+      # Retention policy: keep only the 2 newest stable releases visible.
+      # Prereleases and drafts are not counted and not deleted. Git tags are
+      # preserved (only the Release object + its uploaded assets are removed),
+      # so `git describe` and commit archaeology continue to work.
+      #
+      # All inputs in this step come from GitHub's API via `gh release list`,
+      # not from untrusted event payloads, so there is no injection surface.
+      - name: Trim old releases (keep 2 newest stable)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $to_delete = gh release list --limit 100 `
+            --json tagName,publishedAt,isDraft,isPrerelease `
+            --jq "[.[] | select(.isDraft==false and .isPrerelease==false)] | sort_by(.publishedAt) | reverse | .[2:] | .[].tagName"
+          if (-not $to_delete) {
+            Write-Host "No stable releases to trim."
+            exit 0
+          }
+          foreach ($tag in $to_delete -split "`n") {
+            $tag = $tag.Trim()
+            if ($tag) {
+              Write-Host "Deleting release $tag (git tag preserved)"
+              gh release delete $tag --yes
+            }
+          }
