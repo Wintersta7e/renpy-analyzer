@@ -1,8 +1,11 @@
 # Ren'Py Analyzer
 
+> ⚠️ **This project is archived and no longer maintained.**
+> The repository is kept read-only for reference. Issues and pull requests will not be reviewed. The latest release (v1.2.0) and the source remain available, but no further development, bug fixes, or support are planned. Feel free to fork.
+
 A desktop GUI tool that scans [Ren'Py](https://www.renpy.org/) visual novel projects for bugs and generates styled PDF reports.
 
-[![CI](https://github.com/Wintersta7e/renpy-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Wintersta7e/renpy-analyzer/actions/workflows/ci.yml)
+![Status: archived](https://img.shields.io/badge/status-archived-lightgrey)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
